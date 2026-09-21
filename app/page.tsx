@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -18,7 +18,7 @@ type VendaMensal = {
   mes: string;
   total_vendas: number;
   total_pedidos: number;
-  clientes_ativos: number;
+  crescimento_pct: number | null;
 };
 
 type TopVendedor = {
@@ -40,8 +40,26 @@ type TopCliente = {
   total_pedidos: number;
 };
 
+type DashboardData = {
+  kpis: {
+    total_vendas: number;
+    total_pedidos: number;
+    clientes_ativos: number;
+  };
+  vendas_mensal: VendaMensal[];
+  top_vendedores: TopVendedor[];
+  top_produtos: TopProduto[];
+  top_clientes: TopCliente[];
+};
+
+type FilterOptions = {
+  supervisores: string[];
+  ramos: string[];
+  fabricantes: string[];
+};
+
 function formatMoeda(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 const card: React.CSSProperties = {
@@ -74,82 +92,94 @@ const panel: React.CSSProperties = {
   marginBottom: 24,
 };
 
+const selectStyle: React.CSSProperties = {
+  background: "#171a23",
+  color: "#e6e6e6",
+  border: "1px solid #2a2e3a",
+  borderRadius: 8,
+  padding: "8px 12px",
+};
+
+const inputStyle: React.CSSProperties = {
+  ...selectStyle,
+  minWidth: 220,
+};
+
 export default function DashboardPage() {
-  const [vendasMensais, setVendasMensais] = useState<VendaMensal[]>([]);
-  const [vendedores, setVendedores] = useState<TopVendedor[]>([]);
-  const [produtos, setProdutos] = useState<TopProduto[]>([]);
-  const [clientes, setClientes] = useState<TopCliente[]>([]);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    supervisores: [],
+    ramos: [],
+    fabricantes: [],
+  });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [filtroMes, setFiltroMes] = useState<string>("");
-  const [filtroVendedor, setFiltroVendedor] = useState<string>("");
+  // Filtros
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [supervisor, setSupervisor] = useState("");
+  const [ramo, setRamo] = useState("");
+  const [fabricante, setFabricante] = useState("");
+  const [clienteBusca, setClienteBusca] = useState("");
+  const [clienteDebounced, setClienteDebounced] = useState("");
 
+  // Carrega as opcoes de filtro uma unica vez
   useEffect(() => {
-    async function carregarDadosBase() {
-      setLoading(true);
-      setErro(null);
-
-      const [mensal, vend, prod, cli] = await Promise.all([
-        supabase.from("vw_vendas_mensal").select("*").order("mes"),
-        supabase
-          .from("vw_top_vendedores")
-          .select("*")
-          .order("total_vendas", { ascending: false })
-          .limit(10),
-        supabase
-          .from("vw_top_produtos")
-          .select("*")
-          .order("total_vendas", { ascending: false })
-          .limit(10),
-        supabase
-          .from("vw_top_clientes")
-          .select("*")
-          .order("total_vendas", { ascending: false })
-          .limit(10),
-      ]);
-
-      if (mensal.error || vend.error || prod.error || cli.error) {
-        setErro(
-          mensal.error?.message ||
-            vend.error?.message ||
-            prod.error?.message ||
-            cli.error?.message ||
-            "Erro ao carregar dados"
-        );
-      } else {
-        setVendasMensais((mensal.data as VendaMensal[]) ?? []);
-        setVendedores((vend.data as TopVendedor[]) ?? []);
-        setProdutos((prod.data as TopProduto[]) ?? []);
-        setClientes((cli.data as TopCliente[]) ?? []);
+    async function carregarOpcoes() {
+      const { data: opts, error } = await supabase.rpc("dashboard_filter_options");
+      if (!error && opts) {
+        setFilterOptions(opts as FilterOptions);
       }
-      setLoading(false);
     }
-
-    carregarDadosBase();
+    carregarOpcoes();
   }, []);
 
-  // KPIs calculados a partir da visao mensal, respeitando o filtro de mes
-  const kpis = useMemo(() => {
-    const base = filtroMes
-      ? vendasMensais.filter((v) => v.mes === filtroMes)
-      : vendasMensais;
+  // Debounce da busca por cliente (espera parar de digitar)
+  useEffect(() => {
+    const t = setTimeout(() => setClienteDebounced(clienteBusca), 500);
+    return () => clearTimeout(t);
+  }, [clienteBusca]);
 
-    const totalVendas = base.reduce((acc, v) => acc + Number(v.total_vendas), 0);
-    const totalPedidos = base.reduce((acc, v) => acc + Number(v.total_pedidos), 0);
-    const clientesAtivos = base.reduce(
-      (acc, v) => Math.max(acc, Number(v.clientes_ativos)),
-      0
-    );
-    const ticketMedio = totalPedidos > 0 ? totalVendas / totalPedidos : 0;
+  const carregarDados = useCallback(async () => {
+    setLoading(true);
+    setErro(null);
 
-    return { totalVendas, totalPedidos, clientesAtivos, ticketMedio };
-  }, [vendasMensais, filtroMes]);
+    const { data: result, error } = await supabase.rpc("dashboard_query", {
+      p_data_inicio: dataInicio || null,
+      p_data_fim: dataFim || null,
+      p_supervisor: supervisor || null,
+      p_ramo: ramo || null,
+      p_fabricante: fabricante || null,
+      p_cliente: clienteDebounced || null,
+    });
 
-  const vendedoresFiltrados = useMemo(() => {
-    if (!filtroVendedor) return vendedores;
-    return vendedores.filter((v) => v.Vendedor === filtroVendedor);
-  }, [vendedores, filtroVendedor]);
+    if (error) {
+      setErro(error.message);
+    } else {
+      setData(result as DashboardData);
+    }
+    setLoading(false);
+  }, [dataInicio, dataFim, supervisor, ramo, fabricante, clienteDebounced]);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  const kpis = data?.kpis ?? { total_vendas: 0, total_pedidos: 0, clientes_ativos: 0 };
+  const ticketMedio = kpis.total_pedidos > 0 ? kpis.total_vendas / kpis.total_pedidos : 0;
+
+  const temFiltrosAtivos =
+    dataInicio || dataFim || supervisor || ramo || fabricante || clienteDebounced;
+
+  function limparFiltros() {
+    setDataInicio("");
+    setDataFim("");
+    setSupervisor("");
+    setRamo("");
+    setFabricante("");
+    setClienteBusca("");
+  }
 
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
@@ -174,67 +204,134 @@ export default function DashboardPage() {
       )}
 
       {/* Filtros */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-        <select
-          value={filtroMes}
-          onChange={(e) => setFiltroMes(e.target.value)}
-          style={{
-            background: "#171a23",
-            color: "#e6e6e6",
-            border: "1px solid #2a2e3a",
-            borderRadius: 8,
-            padding: "8px 12px",
-          }}
-        >
-          <option value="">Todos os meses</option>
-          {vendasMensais.map((v) => (
-            <option key={v.mes} value={v.mes}>
-              {v.mes}
-            </option>
-          ))}
-        </select>
+      <div style={{ ...panel, marginBottom: 24 }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Data inicial
+            </label>
+            <input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+              style={selectStyle}
+            />
+          </div>
 
-        <select
-          value={filtroVendedor}
-          onChange={(e) => setFiltroVendedor(e.target.value)}
-          style={{
-            background: "#171a23",
-            color: "#e6e6e6",
-            border: "1px solid #2a2e3a",
-            borderRadius: 8,
-            padding: "8px 12px",
-          }}
-        >
-          <option value="">Todos os vendedores (top 10)</option>
-          {vendedores.map((v) => (
-            <option key={v.Vendedor} value={v.Vendedor}>
-              {v.Vendedor}
-            </option>
-          ))}
-        </select>
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Data final
+            </label>
+            <input
+              type="date"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+              style={selectStyle}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Supervisor
+            </label>
+            <select
+              value={supervisor}
+              onChange={(e) => setSupervisor(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="">Todos</option>
+              {filterOptions.supervisores.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Ramo de atividade
+            </label>
+            <select value={ramo} onChange={(e) => setRamo(e.target.value)} style={selectStyle}>
+              <option value="">Todos</option>
+              {filterOptions.ramos.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Fabricante
+            </label>
+            <select
+              value={fabricante}
+              onChange={(e) => setFabricante(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="">Todos</option>
+              {filterOptions.fabricantes.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "#9099ab", marginBottom: 4 }}>
+              Buscar cliente
+            </label>
+            <input
+              type="text"
+              placeholder="Nome do cliente..."
+              value={clienteBusca}
+              onChange={(e) => setClienteBusca(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          {temFiltrosAtivos && (
+            <button
+              onClick={limparFiltros}
+              style={{
+                background: "transparent",
+                color: "#ff9aa6",
+                border: "1px solid #7a2f38",
+                borderRadius: 8,
+                padding: "8px 16px",
+                cursor: "pointer",
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={card}>
           <div style={cardTitle}>Total vendido</div>
-          <div style={cardValue}>{formatMoeda(kpis.totalVendas)}</div>
+          <div style={cardValue}>{formatMoeda(kpis.total_vendas)}</div>
         </div>
         <div style={card}>
           <div style={cardTitle}>Pedidos</div>
-          <div style={cardValue}>{kpis.totalPedidos.toLocaleString("pt-BR")}</div>
+          <div style={cardValue}>{kpis.total_pedidos.toLocaleString("pt-BR")}</div>
         </div>
         <div style={card}>
           <div style={cardTitle}>Clientes ativos</div>
-          <div style={cardValue}>{kpis.clientesAtivos.toLocaleString("pt-BR")}</div>
+          <div style={cardValue}>{kpis.clientes_ativos.toLocaleString("pt-BR")}</div>
         </div>
         <div style={card}>
           <div style={cardTitle}>Ticket médio</div>
-          <div style={cardValue}>{formatMoeda(kpis.ticketMedio)}</div>
+          <div style={cardValue}>{formatMoeda(ticketMedio)}</div>
         </div>
       </div>
 
-      {/* Vendas por mes */}
+      {/* Vendas por mes + crescimento */}
       <div style={panel}>
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 16 }}>
           Vendas por mês
@@ -242,24 +339,80 @@ export default function DashboardPage() {
         {loading ? (
           <p style={{ color: "#9099ab" }}>Carregando...</p>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={vendasMensais}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2e3a" />
-              <XAxis dataKey="mes" stroke="#9099ab" />
-              <YAxis stroke="#9099ab" />
-              <Tooltip
-                formatter={(v: number) => formatMoeda(Number(v))}
-                contentStyle={{ background: "#171a23", border: "1px solid #2a2e3a" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="total_vendas"
-                stroke="#4f8cff"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={data?.vendas_mensal ?? []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2e3a" />
+                <XAxis dataKey="mes" stroke="#9099ab" />
+                <YAxis stroke="#9099ab" />
+                <Tooltip
+                  formatter={(v: number, name: string) =>
+                    name === "total_vendas" ? formatMoeda(Number(v)) : v
+                  }
+                  contentStyle={{ background: "#171a23", border: "1px solid #2a2e3a" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total_vendas"
+                  stroke="#4f8cff"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Total vendido"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+
+            {/* Tabela de crescimento mes a mes */}
+            <div style={{ marginTop: 16, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", color: "#9099ab" }}>
+                    <th style={{ padding: "8px 4px", borderBottom: "1px solid #2a2e3a" }}>Mês</th>
+                    <th style={{ padding: "8px 4px", borderBottom: "1px solid #2a2e3a" }}>
+                      Total vendido
+                    </th>
+                    <th style={{ padding: "8px 4px", borderBottom: "1px solid #2a2e3a" }}>
+                      Pedidos
+                    </th>
+                    <th style={{ padding: "8px 4px", borderBottom: "1px solid #2a2e3a" }}>
+                      Crescimento vs. mês anterior
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data?.vendas_mensal ?? []).map((v) => (
+                    <tr key={v.mes}>
+                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #21242e" }}>
+                        {v.mes}
+                      </td>
+                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #21242e" }}>
+                        {formatMoeda(v.total_vendas)}
+                      </td>
+                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #21242e" }}>
+                        {v.total_pedidos}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          borderBottom: "1px solid #21242e",
+                          color:
+                            v.crescimento_pct == null
+                              ? "#9099ab"
+                              : v.crescimento_pct >= 0
+                              ? "#34d399"
+                              : "#ff9aa6",
+                        }}
+                      >
+                        {v.crescimento_pct == null
+                          ? "—"
+                          : `${v.crescimento_pct > 0 ? "+" : ""}${v.crescimento_pct}%`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -273,7 +426,7 @@ export default function DashboardPage() {
             <p style={{ color: "#9099ab" }}>Carregando...</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={vendedoresFiltrados} layout="vertical">
+              <BarChart data={data?.top_vendedores ?? []} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#2a2e3a" />
                 <XAxis type="number" stroke="#9099ab" />
                 <YAxis
@@ -302,7 +455,7 @@ export default function DashboardPage() {
             <p style={{ color: "#9099ab" }}>Carregando...</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={produtos} layout="vertical">
+              <BarChart data={data?.top_produtos ?? []} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#2a2e3a" />
                 <XAxis type="number" stroke="#9099ab" />
                 <YAxis
@@ -349,7 +502,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {clientes.map((c) => (
+              {(data?.top_clientes ?? []).map((c) => (
                 <tr key={c["CPF/CNPJ"]}>
                   <td style={{ padding: "8px 4px", borderBottom: "1px solid #21242e" }}>
                     {c.Cliente}
