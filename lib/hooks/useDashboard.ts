@@ -54,13 +54,12 @@ export function useDashboard() {
 
       if (!cancelled) {
         if (error) {
-          // Tratamento inteligente para timeout do PostgreSQL/Supabase
           if (
             error.code === "57014" ||
             error.message?.toLowerCase().includes("timeout")
           ) {
             setErro(
-              "⚠️ O período de datas selecionado contém muitos registros e atingiu o limite de tempo do banco. Dica: selecione um intervalo menor (ex: 7 a 15 dias) para carregar os dados instantaneamente."
+              "⚠️ A consulta atingiu o tempo limite. Execute o script de índices no Supabase para acelerar a tabela de 590 mil linhas."
             );
           } else {
             setErro(error.message);
@@ -103,7 +102,6 @@ export function useDashboard() {
     };
   }, [carregarDados]);
 
-  // Se o usuário filtrou por vendedor, aplica filtro complementar nos vendedores retornados
   const dadosFiltrados = useMemo(() => {
     if (!data) return null;
     if (!vendedorDebounced) return data;
