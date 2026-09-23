@@ -66,12 +66,13 @@ export function useDashboard() {
       if (idDaChamada !== requestIdRef.current) return;
 
       if (error) {
+        setData(null);
         if (
           error.code === "57014" ||
           error.message?.toLowerCase().includes("timeout")
         ) {
           setErro(
-            "⚠️ A consulta atingiu o tempo limite. Tente um período menor, ou execute o script de índices no Supabase para acelerar a tabela de 590 mil linhas."
+            "⚠️ A consulta atingiu o tempo limite. Tente um período menor, ou aplique menos filtros de uma vez."
           );
         } else {
           setErro(error.message);
@@ -81,6 +82,7 @@ export function useDashboard() {
       }
     } catch (e: unknown) {
       if (idDaChamada !== requestIdRef.current) return;
+      setData(null);
       setErro(
         e instanceof Error
           ? e.message
