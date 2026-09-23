@@ -10,48 +10,53 @@ interface KpiCardsProps {
   loading: boolean;
 }
 
-interface CardProps {
-  label: string;
-  value: string;
-  loading: boolean;
-}
-
-function KpiCard({ label, value, loading }: CardProps) {
-  return (
-    <div className="kpi-card">
-      <div className="kpi-label">{label}</div>
-      {loading ? (
-        <Skeleton height={36} />
-      ) : (
-        <div className="kpi-value">{value}</div>
-      )}
-    </div>
-  );
-}
-
 export function KpiCards({ kpis, ticketMedio, loading }: KpiCardsProps) {
+  const coberturaPct = kpis.cobertura_pct ?? null;
+
   return (
     <div className="kpi-grid">
-      <KpiCard
-        label="Total vendido"
-        value={formatMoeda(kpis.total_vendas)}
-        loading={loading}
-      />
-      <KpiCard
-        label="Pedidos"
-        value={formatNumero(kpis.total_pedidos)}
-        loading={loading}
-      />
-      <KpiCard
-        label="Clientes ativos"
-        value={formatNumero(kpis.clientes_ativos)}
-        loading={loading}
-      />
-      <KpiCard
-        label="Ticket médio"
-        value={formatMoeda(ticketMedio)}
-        loading={loading}
-      />
+      <div className="kpi-card">
+        <div className="kpi-label">Faturamento Total</div>
+        {loading ? (
+          <Skeleton height={36} />
+        ) : (
+          <div className="kpi-value">{formatMoeda(kpis.total_vendas)}</div>
+        )}
+      </div>
+
+      <div className="kpi-card">
+        <div className="kpi-label">Volume de Pedidos</div>
+        {loading ? (
+          <Skeleton height={36} />
+        ) : (
+          <div className="kpi-value">{formatNumero(kpis.total_pedidos)}</div>
+        )}
+      </div>
+
+      <div className="kpi-card">
+        <div className="kpi-label">Ticket Médio / Pedido</div>
+        {loading ? (
+          <Skeleton height={36} />
+        ) : (
+          <div className="kpi-value">{formatMoeda(ticketMedio)}</div>
+        )}
+      </div>
+
+      <div className="kpi-card">
+        <div className="kpi-label">Cobertura de Clientes</div>
+        {loading ? (
+          <Skeleton height={36} />
+        ) : (
+          <div className="kpi-value" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span>{formatNumero(kpis.clientes_ativos)}</span>
+            {coberturaPct != null && (
+              <span style={{ fontSize: 13, color: "var(--color-accent)", fontWeight: 500 }}>
+                ({coberturaPct}%)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
