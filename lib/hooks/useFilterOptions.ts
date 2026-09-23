@@ -1,84 +1,188 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { FilterOptions } from "@/lib/types";
+import type { DashboardData, Filtros } from "@/lib/types";
 
-export function useFilterOptions() {
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    supervisores: [],
-    ramos: [],
-    fabricantes: [],
-  });
+const FILTROS_INICIAIS: Filtros = {
+  dataInicio: "",
+  dataFim: "",
+  supervisor: "",
+  ramo: "",
+  fabricante: "",
+  clienteBusca: "",
+  tipoVenda: "",
+  codVendedor: "",
+};
+
+export function useDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
+  // "filtros" é o que está nos campos na tela (reage ao digitar/selecionar).
+  // "filtrosAplicados" é o que realmente foi usado na última consulta —
+  // só muda quando o usuário clica em "Pesquisar" ou "Limpar filtros".
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Filtros>(FILTROS_INICIAIS);
+
+  // Cód. Vendedor filtra localmente a lista de vendedores já carregada,
+  // então continua "ao vivo" sem gerar uma nova consulta no banco.
+  const [vendedorDebounced, setVendedorDebounced] = useState("");
   useEffect(() => {
-    let cancelled = false;
+    const t = setTimeout(() => setVendedorDebounced(filtros.codVendedor), 400);
+    return () => clearTimeout(t);
+  }, [filtros.codVendedor]);
 
-    async function carregarFiltros() {
-      try {
-        // 1. Buscar Supervisores direto da tabela dimensional dim_bd_Equipe
-        const supPromise = supabase
-          .from("dim_bd_Equipe")
-          .select("Supervisor")
-          .not("Supervisor", "is", null);
+  // Guarda de requisição: se, por algum motivo, duas consultas ficarem
+  // em andamento ao mesmo tempo, só o resultado da mais recente é aplicado.
+  const requestIdRef = useRef(0);
 
-        // 2. Tentar buscar Ramos e Fabricantes via RPC otimizada ou fallback
-        const rpcPromise = supabase.rpc("dashboard_filter_options");
-
-        const [supRes, rpcRes] = await Promise.allSettled([supPromise, rpcPromise]);
-
-        let supervisoresUnicos: string[] = [];
-        if (supRes.status === "fulfilled" && supRes.value.data) {
-          const raw = supRes.value.data
-            .map((item: any) => item.Supervisor?.toString().trim())
-            .filter(Boolean);
-          supervisoresUnicos = Array.from(new Set(raw)).sort();
-        }
-
-        let ramos: string[] = [];
-        let fabricantes: any[] = [];
-
-        if (rpcRes.status === "fulfilled" && rpcRes.value.data) {
-          const opts = rpcRes.value.data as any;
-          if (opts.ramos && opts.ramos.length > 0) ramos = opts.ramos;
-          if (opts.fabricantes && opts.fabricantes.length > 0) fabricantes = opts.fabricantes;
-        }
-
-        // Se o RPC não respondeu os ramos/fabricantes, busca de vw_top_fabricantes ou ft_Vendas_8011
-        if (fabricantes.length === 0) {
-          const { data: fabData } = await supabase
-            .from("vw_top_fabricantes")
-            .select("Fabricante")
-            .limit(50);
-
-          if (fabData) {
-            fabricantes = Array.from(
-              new Set(fabData.map((f: any) => f.Fabricante).filter(Boolean))
-            ).sort();
-          }
-        }
-
-        if (!cancelled) {
-          setFilterOptions({
-            supervisores: supervisoresUnicos,
-            ramos: ramos,
-            fabricantes: fabricantes,
-          });
-        }
-      } catch (err) {
-        console.error("Erro ao carregar opções de filtro:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const carregarDados = useCallback(async () => {
+    if (
+      filtrosAplicados.dataInicio &&
+      filtrosAplicados.dataFim &&
+      filtrosAplicados.dataInicio > filtrosAplicados.dataFim
+    ) {
+      setErro("A data inicial não pode ser depois da data final.");
+      return;
     }
 
-    carregarFiltros();
+    const idDaChamada = ++requestIdRef.current;
+    setLoading(true);
+    setErro(null);
 
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const { data: result, error } = await supabase.rpc("dashboard_query", {
+        p_data_inicio: filtrosAplicados.dataInicio || null,
+        p_data_fim: filtrosAplicados.dataFim || null,
+        p_supervisor: filtrosAplicados.supervisor || null,
+        p_ramo: filtrosAplicados.ramo || null,
+        p_fabricante: filtrosAplicados.fabricante || null,
+        p_cliente: filtrosAplicados.clienteBusca || null,
+        p_tipo: filtrosAplicados.tipoVenda ? Number(filtrosAplicados.tipoVenda) : null,
+      });
+
+      if (idDaChamada !== requestIdRef.current) return;
+
+      if (error) {
+        setData(null);
+        if (
+          error.code === "57014" ||
+          error.message?.toLowerCase().includes("timeout")
+        ) {
+          setErro(
+            "⚠️ A consulta atingiu o tempo limite. Tente um período menor, ou aplique menos filtros de uma vez."
+          );
+        } else {
+          setErro(error.message);
+        }
+      } else if (result) {
+        setData(result as DashboardData);
+      }
+    } catch (e: unknown) {
+      if (idDaChamada !== requestIdRef.current) return;
+      setData(null);
+      setErro(
+        e instanceof Error
+          ? e.message
+          : "Não foi possível carregar os dados. Verifique a conexão com o Supabase."
+      );
+    } finally {
+      if (idDaChamada === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [filtrosAplicados]);
+
+  // Roda uma vez ao montar (com os filtros iniciais) e de novo toda vez
+  // que "filtrosAplicados" mudar — ou seja, quando o usuário confirmar
+  // a busca ou limpar os filtros. Nunca a cada tecla digitada.
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  const buscar = useCallback(() => {
+    setFiltrosAplicados(filtros);
+  }, [filtros]);
+
+  const limparFiltros = useCallback(() => {
+    setFiltros(FILTROS_INICIAIS);
+    setFiltrosAplicados(FILTROS_INICIAIS);
   }, []);
 
-  return { filterOptions, loading };
+  const dadosFiltrados = useMemo(() => {
+    if (!data) return null;
+    if (!vendedorDebounced) return data;
+
+    const termo = vendedorDebounced.toLowerCase().trim();
+    const topVendedores = data.top_vendedores.filter((v) =>
+      v.Vendedor.toLowerCase().includes(termo)
+    );
+
+    return {
+      ...data,
+      top_vendedores: topVendedores,
+    };
+  }, [data, vendedorDebounced]);
+
+  const kpis = useMemo(
+    () =>
+      dadosFiltrados?.kpis ?? {
+        total_vendas: 0,
+        total_pedidos: 0,
+        clientes_ativos: 0,
+      },
+    [dadosFiltrados]
+  );
+
+  const ticketMedio = useMemo(
+    () => (kpis.total_pedidos > 0 ? kpis.total_vendas / kpis.total_pedidos : 0),
+    [kpis]
+  );
+
+  const temFiltrosAtivos = useMemo(
+    () =>
+      Boolean(
+        filtros.dataInicio ||
+          filtros.dataFim ||
+          filtros.supervisor ||
+          filtros.ramo ||
+          filtros.fabricante ||
+          filtros.tipoVenda ||
+          filtros.codVendedor ||
+          filtros.clienteBusca
+      ),
+    [filtros]
+  );
+
+  // Indica se há mudanças nos campos que ainda não foram buscadas —
+  // usado pra destacar visualmente o botão "Pesquisar".
+  const temFiltrosPendentes = useMemo(() => {
+    const chaves: (keyof Filtros)[] = [
+      "dataInicio",
+      "dataFim",
+      "supervisor",
+      "ramo",
+      "fabricante",
+      "clienteBusca",
+      "tipoVenda",
+    ];
+    return chaves.some((chave) => filtros[chave] !== filtrosAplicados[chave]);
+  }, [filtros, filtrosAplicados]);
+
+  return {
+    data: dadosFiltrados,
+    loading,
+    erro,
+    kpis,
+    ticketMedio,
+    filtros,
+    setFiltros,
+    temFiltrosAtivos,
+    temFiltrosPendentes,
+    buscar,
+    limparFiltros,
+    carregarDados,
+  };
 }
