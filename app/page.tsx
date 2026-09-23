@@ -163,6 +163,8 @@ function VisaoGeral() {
     filtros,
     setFiltros,
     temFiltrosAtivos,
+    temFiltrosPendentes,
+    buscar,
     limparFiltros,
   } = useDashboard();
   const { filterOptions } = useFilterOptions();
@@ -190,6 +192,8 @@ function VisaoGeral() {
         filtros={filtros}
         onChange={setFiltros}
         temFiltrosAtivos={temFiltrosAtivos}
+        temFiltrosPendentes={temFiltrosPendentes}
+        onBuscar={buscar}
         onLimpar={limparFiltros}
       />
 
