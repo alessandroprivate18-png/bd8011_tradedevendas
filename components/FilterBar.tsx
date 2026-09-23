@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { TIPOS_VENDA } from "@/lib/types";
 import type { FilterOptions, Filtros } from "@/lib/types";
 
@@ -8,7 +9,9 @@ interface FilterBarProps {
   filtros: Filtros;
   onChange: (filtros: Filtros) => void;
   temFiltrosAtivos: boolean;
+  temFiltrosPendentes: boolean;
   onLimpar: () => void;
+  onBuscar: () => void;
 }
 
 export function FilterBar({
@@ -16,10 +19,16 @@ export function FilterBar({
   filtros,
   onChange,
   temFiltrosAtivos,
+  temFiltrosPendentes,
   onLimpar,
+  onBuscar,
 }: FilterBarProps) {
   function set(field: keyof Filtros, value: string) {
     onChange({ ...filtros, [field]: value });
+  }
+
+  function handleEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") onBuscar();
   }
 
   return (
@@ -65,7 +74,7 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* Novo Filtro: Cód. Vendedor */}
+        {/* Cód. Vendedor (filtra localmente, em tempo real) */}
         <div className="filter-field">
           <label className="filter-label" style={{ fontWeight: 600 }}>
             Cód. Vend / Vendedor
@@ -140,8 +149,28 @@ export function FilterBar({
             placeholder="Nome do cliente..."
             value={filtros.clienteBusca}
             onChange={(e) => set("clienteBusca", e.target.value)}
+            onKeyDown={handleEnter}
           />
         </div>
+
+        {/* Pesquisar: só aqui a consulta é realmente disparada */}
+        <button
+          onClick={onBuscar}
+          className="btn-clear"
+          style={{
+            background: temFiltrosPendentes ? "var(--color-accent)" : "transparent",
+            color: temFiltrosPendentes ? "#fff" : "var(--color-accent)",
+            border: "1px solid var(--color-accent)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontWeight: 600,
+          }}
+          title="Aplicar filtros e buscar"
+        >
+          <Search size={15} />
+          Pesquisar
+        </button>
 
         {temFiltrosAtivos && (
           <button className="btn-clear" onClick={onLimpar}>
