@@ -29,40 +29,37 @@ const TOOLTIP_STYLE = {
 export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
   const rows = dados ?? [];
 
-  // Calcula dinamicamente a cobertura e crescimento de clientes se não vier do backend
+  // Mapeia e calcula Cobertura de Clientes e Crescimento mês a mês
   const rowsProcessadas = useMemo(() => {
     return rows.map((v, idx) => {
-      // Cobertura de clientes (clientes_ativos ou clientes)
       const clientes = Number(
-        (v as any).clientes_ativos ?? (v as any).clientes ?? (v as any).cobertura ?? 0
+        v.clientes_ativos ?? (v as any).cobertura ?? (v as any).total_clientes ?? 0
       );
 
-      // Crescimento de cobertura em relação ao mês anterior na lista
-      let crescimentoCobPct: number | null = (v as any).crescimento_clientes_pct ?? null;
+      let crescClientes: number | null = v.crescimento_cobertura_pct ?? null;
 
-      if (crescimentoCobPct === null && idx > 0) {
-        const clientesAnterior = Number(
-          (rows[idx - 1] as any).clientes_ativos ??
-          (rows[idx - 1] as any).clientes ??
-          (rows[idx - 1] as any).cobertura ?? 0
+      if (crescClientes === null && idx > 0) {
+        const prevClientes = Number(
+          rows[idx - 1].clientes_ativos ??
+          (rows[idx - 1] as any).cobertura ??
+          (rows[idx - 1] as any).total_clientes ?? 0
         );
-        if (clientesAnterior > 0) {
-          crescimentoCobPct =
-            Math.round(((clientes - clientesAnterior) / clientesAnterior) * 1000) / 10;
+        if (prevClientes > 0) {
+          crescClientes = Math.round(((clientes - prevClientes) / prevClientes) * 1000) / 10;
         }
       }
 
       return {
         ...v,
-        cobertura_calculada: clientes,
-        crescimento_cobertura_pct: crescimentoCobPct,
+        cobertura_clientes: clientes,
+        crescimento_cobertura_pct: crescClientes,
       };
     });
   }, [rows]);
 
   return (
     <div className="panel">
-      <h2 className="panel-title">Vendas por mês</h2>
+      <h2 className="panel-title">Vendas por mês & Cobertura</h2>
 
       {loading ? (
         <>
@@ -80,7 +77,7 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
               <YAxis stroke="var(--color-muted)" />
               <Tooltip
                 formatter={(v: number, name: string) =>
-                  name === "total_vendas" ? formatMoeda(Number(v)) : v
+                  name === "total_vendas" ? formatMoeda(Number(v)) : formatNumero(Number(v))
                 }
                 contentStyle={TOOLTIP_STYLE}
               />
@@ -95,7 +92,6 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Tabela de crescimento mês a mês com Cobertura de Clientes */}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -103,9 +99,9 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                   <th>Mês</th>
                   <th>Total vendido</th>
                   <th>Pedidos</th>
-                  <th>Crescimento Vendas</th>
+                  <th>Cresc. Vendas</th>
                   <th>Cobertura (Clientes)</th>
-                  <th>Crescimento Cobertura</th>
+                  <th>Cresc. Cobertura</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,7 +136,14 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                       <td>{formatMoeda(v.total_vendas)}</td>
                       <td>{v.total_pedidos}</td>
                       <td className={growthClass}>{growthLabel}</td>
-                      <td><strong>{formatNumero(v.cobertura_calculada)}</strong></td>
+                      <td>
+                        <strong>{formatNumero(v.cobertura_clientes)}</strong>
+                        {v.cobertura_pct != null && (
+                          <span style={{ fontSize: 11, marginLeft: 6, color: "var(--color-muted)" }}>
+                            ({v.cobertura_pct}%)
+                          </span>
+                        )}
+                      </td>
                       <td className={cobClass}>{cobLabel}</td>
                     </tr>
                   );
