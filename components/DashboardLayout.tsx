@@ -11,6 +11,8 @@ interface DashboardLayoutProps {
   refreshing?: boolean;
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
+  usuarioNome: string;
+  onSair: () => void;
 }
 
 export function DashboardLayout({
@@ -19,6 +21,8 @@ export function DashboardLayout({
   refreshing,
   activeTab,
   onSelectTab,
+  usuarioNome,
+  onSair,
 }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -47,6 +51,8 @@ export function DashboardLayout({
           onOpenMobileSidebar={() => setMobileOpen(true)}
           onRefreshData={onRefreshData}
           refreshing={refreshing}
+          usuarioNome={usuarioNome}
+          onSair={onSair}
         />
         <div className="page-content">{children}</div>
       </div>
