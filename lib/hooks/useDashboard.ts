@@ -19,50 +19,32 @@ export function useDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  // "filtros" é o que está nos campos na tela (reage ao digitar/selecionar).
+  // "filtrosAplicados" é o que realmente foi usado na última consulta —
+  // só muda quando o usuário clica em "Pesquisar" ou "Limpar filtros".
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Filtros>(FILTROS_INICIAIS);
 
-  // Debounce da busca por cliente
-  const [clienteDebounced, setClienteDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setClienteDebounced(filtros.clienteBusca), 500);
-    return () => clearTimeout(t);
-  }, [filtros.clienteBusca]);
-
-  // Debounce do código do vendedor
+  // Cód. Vendedor filtra localmente a lista de vendedores já carregada,
+  // então continua "ao vivo" sem gerar uma nova consulta no banco.
   const [vendedorDebounced, setVendedorDebounced] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setVendedorDebounced(filtros.codVendedor), 400);
     return () => clearTimeout(t);
   }, [filtros.codVendedor]);
 
-  // Debounce das datas: evita disparar uma consulta a cada mudança
-  // rápida em "Data inicial" / "Data final".
-  const [dataInicioDebounced, setDataInicioDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDataInicioDebounced(filtros.dataInicio), 400);
-    return () => clearTimeout(t);
-  }, [filtros.dataInicio]);
-
-  const [dataFimDebounced, setDataFimDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDataFimDebounced(filtros.dataFim), 400);
-    return () => clearTimeout(t);
-  }, [filtros.dataFim]);
-
-  // Guarda de requisição: cada chamada carrega um número sequencial.
-  // Se, quando a resposta voltar, já existir uma chamada mais nova em
-  // andamento, essa resposta é descartada — nunca mais sobrescreve a
-  // tela com dado de um período antigo.
+  // Guarda de requisição: se, por algum motivo, duas consultas ficarem
+  // em andamento ao mesmo tempo, só o resultado da mais recente é aplicado.
   const requestIdRef = useRef(0);
 
   const carregarDados = useCallback(async () => {
-    // Início depois do fim: não dispara consulta enquanto o usuário
-    // ainda está ajustando o período (evita erro/timeout à toa).
     if (
-      dataInicioDebounced &&
-      dataFimDebounced &&
-      dataInicioDebounced > dataFimDebounced
+      filtrosAplicados.dataInicio &&
+      filtrosAplicados.dataFim &&
+      filtrosAplicados.dataInicio > filtrosAplicados.dataFim
     ) {
+      setErro("A data inicial não pode ser depois da data final.");
       return;
     }
 
@@ -72,17 +54,15 @@ export function useDashboard() {
 
     try {
       const { data: result, error } = await supabase.rpc("dashboard_query", {
-        p_data_inicio: dataInicioDebounced || null,
-        p_data_fim: dataFimDebounced || null,
-        p_supervisor: filtros.supervisor || null,
-        p_ramo: filtros.ramo || null,
-        p_fabricante: filtros.fabricante || null,
-        p_cliente: clienteDebounced || null,
-        p_tipo: filtros.tipoVenda ? Number(filtros.tipoVenda) : null,
+        p_data_inicio: filtrosAplicados.dataInicio || null,
+        p_data_fim: filtrosAplicados.dataFim || null,
+        p_supervisor: filtrosAplicados.supervisor || null,
+        p_ramo: filtrosAplicados.ramo || null,
+        p_fabricante: filtrosAplicados.fabricante || null,
+        p_cliente: filtrosAplicados.clienteBusca || null,
+        p_tipo: filtrosAplicados.tipoVenda ? Number(filtrosAplicados.tipoVenda) : null,
       });
 
-      // Essa resposta já está desatualizada — uma consulta mais nova
-      // foi disparada enquanto esta estava em andamento.
       if (idDaChamada !== requestIdRef.current) return;
 
       if (error) {
@@ -91,7 +71,7 @@ export function useDashboard() {
           error.message?.toLowerCase().includes("timeout")
         ) {
           setErro(
-            "⚠️ A consulta atingiu o tempo limite. Execute o script de índices no Supabase para acelerar a tabela de 590 mil linhas."
+            "⚠️ A consulta atingiu o tempo limite. Tente um período menor, ou execute o script de índices no Supabase para acelerar a tabela de 590 mil linhas."
           );
         } else {
           setErro(error.message);
@@ -111,19 +91,23 @@ export function useDashboard() {
         setLoading(false);
       }
     }
-  }, [
-    dataInicioDebounced,
-    dataFimDebounced,
-    filtros.supervisor,
-    filtros.ramo,
-    filtros.fabricante,
-    filtros.tipoVenda,
-    clienteDebounced,
-  ]);
+  }, [filtrosAplicados]);
 
+  // Roda uma vez ao montar (com os filtros iniciais) e de novo toda vez
+  // que "filtrosAplicados" mudar — ou seja, quando o usuário confirmar
+  // a busca ou limpar os filtros. Nunca a cada tecla digitada.
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  const buscar = useCallback(() => {
+    setFiltrosAplicados(filtros);
+  }, [filtros]);
+
+  const limparFiltros = useCallback(() => {
+    setFiltros(FILTROS_INICIAIS);
+    setFiltrosAplicados(FILTROS_INICIAIS);
+  }, []);
 
   const dadosFiltrados = useMemo(() => {
     if (!data) return null;
@@ -165,14 +149,25 @@ export function useDashboard() {
           filtros.fabricante ||
           filtros.tipoVenda ||
           filtros.codVendedor ||
-          clienteDebounced
+          filtros.clienteBusca
       ),
-    [filtros, clienteDebounced]
+    [filtros]
   );
 
-  const limparFiltros = useCallback(() => {
-    setFiltros(FILTROS_INICIAIS);
-  }, []);
+  // Indica se há mudanças nos campos que ainda não foram buscadas —
+  // usado pra destacar visualmente o botão "Pesquisar".
+  const temFiltrosPendentes = useMemo(() => {
+    const chaves: (keyof Filtros)[] = [
+      "dataInicio",
+      "dataFim",
+      "supervisor",
+      "ramo",
+      "fabricante",
+      "clienteBusca",
+      "tipoVenda",
+    ];
+    return chaves.some((chave) => filtros[chave] !== filtrosAplicados[chave]);
+  }, [filtros, filtrosAplicados]);
 
   return {
     data: dadosFiltrados,
@@ -183,6 +178,8 @@ export function useDashboard() {
     filtros,
     setFiltros,
     temFiltrosAtivos,
+    temFiltrosPendentes,
+    buscar,
     limparFiltros,
     carregarDados,
   };
