@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   BarChart,
   Bar,
@@ -149,11 +149,25 @@ function TelaLogin({ onLogin }: { onLogin: (u: Usuario) => void }) {
       style={{
         minHeight: "100vh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         background: "#0f1117",
+        padding: "24px 16px",
       }}
     >
+      <img
+        src="/logo-serido.png"
+        alt="Seridó Distribuidora"
+        style={{
+          width: 190,
+          maxWidth: "70%",
+          height: "auto",
+          marginBottom: 32,
+          filter: "drop-shadow(0 8px 24px rgba(41,171,226,0.18))",
+        }}
+      />
+
       <form
         onSubmit={entrar}
         style={{
@@ -234,6 +248,16 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const [clienteBusca, setClienteBusca] = useState("");
   const [clienteDebounced, setClienteDebounced] = useState("");
 
+  // --- Datas com debounce: evita disparar uma consulta a cada
+  // alteração de "Data inicial" / "Data final" em sequência rápida.
+  const [dataInicioDebounced, setDataInicioDebounced] = useState("");
+  const [dataFimDebounced, setDataFimDebounced] = useState("");
+
+  // --- Guarda de requisição: garante que só o resultado da
+  // última consulta disparada seja aplicado na tela, mesmo que
+  // uma consulta mais antiga demore mais para responder.
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
     async function carregarOpcoes() {
       const { data: opts, error } = await supabase.rpc("dashboard_filter_options");
@@ -247,14 +271,32 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
     return () => clearTimeout(t);
   }, [clienteBusca]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDataInicioDebounced(dataInicio), 400);
+    return () => clearTimeout(t);
+  }, [dataInicio]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDataFimDebounced(dataFim), 400);
+    return () => clearTimeout(t);
+  }, [dataFim]);
+
   const carregarDados = useCallback(async () => {
+    // Se o usuário selecionou início e fim mas o início ficou
+    // depois do fim, não dispara a consulta (evita erro/timeout
+    // desnecessário no banco enquanto o usuário ainda está ajustando).
+    if (dataInicioDebounced && dataFimDebounced && dataInicioDebounced > dataFimDebounced) {
+      return;
+    }
+
+    const idDaChamada = ++requestIdRef.current;
     setLoading(true);
     setErro(null);
 
     const { data: result, error } = await supabase.rpc("dashboard_query", {
       p_tipo: Number(tipo) || 1,
-      p_data_inicio: dataInicio || null,
-      p_data_fim: dataFim || null,
+      p_data_inicio: dataInicioDebounced || null,
+      p_data_fim: dataFimDebounced || null,
       p_supervisor: supervisor || null,
       p_ramo: ramo || null,
       p_fabricante: fabricante || null,
@@ -262,13 +304,27 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
       p_cliente: clienteDebounced || null,
     });
 
+    // Se, enquanto essa chamada estava em andamento, uma consulta
+    // mais nova já foi disparada (outro filtro mudou), descarta
+    // esse resultado — ele está desatualizado.
+    if (idDaChamada !== requestIdRef.current) return;
+
     if (error) {
       setErro(error.message);
     } else {
       setData(result as DashboardData);
     }
     setLoading(false);
-  }, [tipo, dataInicio, dataFim, supervisor, ramo, fabricante, codFabricante, clienteDebounced]);
+  }, [
+    tipo,
+    dataInicioDebounced,
+    dataFimDebounced,
+    supervisor,
+    ramo,
+    fabricante,
+    codFabricante,
+    clienteDebounced,
+  ]);
 
   useEffect(() => {
     carregarDados();
