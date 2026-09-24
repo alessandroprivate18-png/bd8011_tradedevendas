@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -10,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatMoeda, formatNumero } from "@/lib/format";
+import { formatMoeda } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import type { VendaMensal } from "@/lib/types";
 
@@ -29,37 +28,9 @@ const TOOLTIP_STYLE = {
 export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
   const rows = dados ?? [];
 
-  // Mapeia e calcula Cobertura de Clientes e Crescimento mês a mês
-  const rowsProcessadas = useMemo(() => {
-    return rows.map((v, idx) => {
-      const clientes = Number(
-        v.clientes_ativos ?? (v as any).cobertura ?? (v as any).total_clientes ?? 0
-      );
-
-      let crescClientes: number | null = v.crescimento_cobertura_pct ?? null;
-
-      if (crescClientes === null && idx > 0) {
-        const prevClientes = Number(
-          rows[idx - 1].clientes_ativos ??
-          (rows[idx - 1] as any).cobertura ??
-          (rows[idx - 1] as any).total_clientes ?? 0
-        );
-        if (prevClientes > 0) {
-          crescClientes = Math.round(((clientes - prevClientes) / prevClientes) * 1000) / 10;
-        }
-      }
-
-      return {
-        ...v,
-        cobertura_clientes: clientes,
-        crescimento_cobertura_pct: crescClientes,
-      };
-    });
-  }, [rows]);
-
   return (
     <div className="panel">
-      <h2 className="panel-title">Vendas por mês & Cobertura</h2>
+      <h2 className="panel-title">Vendas por mês</h2>
 
       {loading ? (
         <>
@@ -71,13 +42,13 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={rowsProcessadas}>
+            <LineChart data={rows}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="mes" stroke="var(--color-muted)" />
               <YAxis stroke="var(--color-muted)" />
               <Tooltip
                 formatter={(v: number, name: string) =>
-                  name === "total_vendas" ? formatMoeda(Number(v)) : formatNumero(Number(v))
+                  name === "total_vendas" ? formatMoeda(Number(v)) : v
                 }
                 contentStyle={TOOLTIP_STYLE}
               />
@@ -92,6 +63,7 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
             </LineChart>
           </ResponsiveContainer>
 
+          {/* Tabela de crescimento mês a mês com Cobertura de Clientes */}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -99,13 +71,13 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                   <th>Mês</th>
                   <th>Total vendido</th>
                   <th>Pedidos</th>
-                  <th>Cresc. Vendas</th>
-                  <th>Cobertura (Clientes)</th>
-                  <th>Cresc. Cobertura</th>
+                  <th>Crescimento vendas</th>
+                  <th>Cobertura de clientes</th>
+                  <th>Crescimento cobertura</th>
                 </tr>
               </thead>
               <tbody>
-                {rowsProcessadas.map((v) => {
+                {rows.map((v) => {
                   const growthClass =
                     v.crescimento_pct == null
                       ? "growth-neutral"
@@ -118,17 +90,20 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                       ? "—"
                       : `${v.crescimento_pct > 0 ? "+" : ""}${v.crescimento_pct}%`;
 
-                  const cobClass =
-                    v.crescimento_cobertura_pct == null
+                  const cobLabel =
+                    v.cobertura_pct == null ? "—" : `${v.cobertura_pct}%`;
+
+                  const cobCrescClass =
+                    v.cobertura_crescimento_pp == null
                       ? "growth-neutral"
-                      : v.crescimento_cobertura_pct >= 0
+                      : v.cobertura_crescimento_pp >= 0
                       ? "growth-positive"
                       : "growth-negative";
 
-                  const cobLabel =
-                    v.crescimento_cobertura_pct == null
+                  const cobCrescLabel =
+                    v.cobertura_crescimento_pp == null
                       ? "—"
-                      : `${v.crescimento_cobertura_pct > 0 ? "+" : ""}${v.crescimento_cobertura_pct}%`;
+                      : `${v.cobertura_crescimento_pp > 0 ? "+" : ""}${v.cobertura_crescimento_pp} p.p.`;
 
                   return (
                     <tr key={v.mes}>
@@ -137,14 +112,9 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                       <td>{v.total_pedidos}</td>
                       <td className={growthClass}>{growthLabel}</td>
                       <td>
-                        <strong>{formatNumero(v.cobertura_clientes)}</strong>
-                        {v.cobertura_pct != null && (
-                          <span style={{ fontSize: 11, marginLeft: 6, color: "var(--color-muted)" }}>
-                            ({v.cobertura_pct}%)
-                          </span>
-                        )}
+                        <strong>{cobLabel}</strong>
                       </td>
-                      <td className={cobClass}>{cobLabel}</td>
+                      <td className={cobCrescClass}>{cobCrescLabel}</td>
                     </tr>
                   );
                 })}
