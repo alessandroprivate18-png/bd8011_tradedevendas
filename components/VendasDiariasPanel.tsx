@@ -91,6 +91,21 @@ export function VendasDiariasPanel({ filterOptions }: VendasDiariasPanelProps) {
               onKeyDown={(e) => e.key === "Enter" && buscar()}
             />
           </div>
+          <div className="filter-field">
+            <label className="filter-label">Cód. Fabricante</label>
+            <select
+              className="filter-control"
+              value={filtros.codFabricante}
+              onChange={(e) => set("codFabricante", e.target.value)}
+            >
+              <option value="">Todos</option>
+              {filterOptions.fabricantes_codigo.map((f) => (
+                <option key={f.codigo} value={f.codigo}>
+                  {f.codigo} - {f.nome}
+                </option>
+              ))}
+            </select>
+          </div>
           <button onClick={buscar} className="btn-clear">
             Pesquisar
           </button>
