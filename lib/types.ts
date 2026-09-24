@@ -87,4 +87,11 @@ export type RedeCliente = {
   id_Redes: number;
 };
 
-export type ActiveTab = "visao-geral" | "vendas" | "clientes" | "produtos" | "redes";
+export type ActiveTab =
+  | "visao-geral"
+  | "vendas"
+  | "clientes"
+  | "produtos"
+  | "redes"
+  | "gerencial"
+  | "roteiro";
