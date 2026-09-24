@@ -30,6 +30,8 @@ export type Kpis = {
   total_vendas: number;
   total_pedidos: number;
   clientes_ativos: number;
+  cobertura_pct?: number;
+  crescimento_clientes_pct?: number;
 };
 
 export type DashboardData = {
@@ -40,10 +42,16 @@ export type DashboardData = {
   top_clientes: TopCliente[];
 };
 
+export type FabricanteItem = {
+  codigo: string;
+  nome: string;
+};
+
 export type FilterOptions = {
   supervisores: string[];
   ramos: string[];
   fabricantes: string[];
+  fabricantesComCodigo?: FabricanteItem[];
 };
 
 export type Filtros = {
@@ -52,6 +60,7 @@ export type Filtros = {
   supervisor: string;
   ramo: string;
   fabricante: string;
+  codFabricante: string;
   clienteBusca: string;
   tipoVenda: string; // 1=Venda, 2=Troca, 3=Bonificação, 4=Consignado, 5=Outras Saídas, 6=Merchandising
   codVendedor: string; // Código ou nome do vendedor
