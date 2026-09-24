@@ -220,14 +220,38 @@ function VisaoGeral() {
       <div style={{ marginTop: 24 }}>
         <TopClientes dados={data?.top_clientes} loading={loading} />
       </div>
+    </>
+  );
+}
 
-      <div style={{ marginTop: 40, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 4 }}>Visão Gerencial</h2>
+// ---------- Aba "Gerencial" ----------
+
+function AbaGerencial() {
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Gerencial</h1>
         <p style={{ color: "var(--color-muted)" }}>
           Ranking de vendedores e participação por fornecedor
         </p>
       </div>
       <GerencialPanel />
+    </>
+  );
+}
+
+// ---------- Aba "Roteiro" ----------
+
+function AbaRoteiro() {
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Roteiro</h1>
+        <p style={{ color: "var(--color-muted)" }}>
+          Roteiro do vendedor para o dia
+        </p>
+      </div>
+      <RoteiroVendedorPanel />
     </>
   );
 }
@@ -266,9 +290,6 @@ function AbaClientes() {
         </p>
       </div>
       <CoberturaPanel />
-      <div style={{ marginTop: 40 }}>
-        <RoteiroVendedorPanel />
-      </div>
     </>
   );
 }
@@ -298,6 +319,8 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
       {activeTab === "vendas" && <AbaVendas />}
       {activeTab === "clientes" && <AbaClientes />}
       {activeTab === "produtos" && <EmBreve titulo="Produtos (Curva ABC) — próxima etapa" />}
+      {activeTab === "gerencial" && <AbaGerencial />}
+      {activeTab === "roteiro" && <AbaRoteiro />}
       {activeTab === "redes" && <EmBreve titulo="Redes (dim_bd_Redes) — próxima etapa" />}
     </DashboardLayout>
   );
