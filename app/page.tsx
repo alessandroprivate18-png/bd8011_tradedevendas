@@ -6,6 +6,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { FilterBar } from "@/components/FilterBar";
 import { KpiCards } from "@/components/KpiCards";
 import { VendasMensalPanel } from "@/components/VendasMensalPanel";
+import { VendasDiariasPanel } from "@/components/VendasDiariasPanel";
+import { PerformanceDiariaPanel } from "@/components/PerformanceDiariaPanel";
+import { CoberturaPanel } from "@/components/CoberturaPanel";
+import { GerencialPanel } from "@/components/GerencialPanel";
+import { RoteiroVendedorPanel } from "@/components/RoteiroVendedorPanel";
 import { TopVendedores } from "@/components/TopVendedores";
 import { TopProdutos } from "@/components/TopProdutos";
 import { TopClientes } from "@/components/TopClientes";
@@ -151,7 +156,7 @@ function TelaLogin({ onLogin }: { onLogin: (u: Usuario) => void }) {
   );
 }
 
-// ---------- Aba "Visão Geral" ----------
+// ---------- Aba "Visão Geral" (agora com secao Gerencial no fim) ----------
 
 function VisaoGeral() {
   const {
@@ -215,6 +220,55 @@ function VisaoGeral() {
       <div style={{ marginTop: 24 }}>
         <TopClientes dados={data?.top_clientes} loading={loading} />
       </div>
+
+      <div style={{ marginTop: 40, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 20, marginBottom: 4 }}>Visão Gerencial</h2>
+        <p style={{ color: "var(--color-muted)" }}>
+          Ranking de vendedores e participação por fornecedor
+        </p>
+      </div>
+      <GerencialPanel />
+    </>
+  );
+}
+
+// ---------- Aba "Vendas" (performance diaria + atendimento por vendedor) ----------
+
+function AbaVendas() {
+  const { filterOptions } = useFilterOptions();
+
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Vendas</h1>
+        <p style={{ color: "var(--color-muted)" }}>
+          Performance diária, vendas por dia e clientes atendidos por vendedor
+        </p>
+      </div>
+      <PerformanceDiariaPanel />
+      <div style={{ marginTop: 40, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 20, marginBottom: 4 }}>Atendimento por vendedor</h2>
+      </div>
+      <VendasDiariasPanel filterOptions={filterOptions} />
+    </>
+  );
+}
+
+// ---------- Aba "Clientes" (cobertura + roteiro) ----------
+
+function AbaClientes() {
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Clientes</h1>
+        <p style={{ color: "var(--color-muted)" }}>
+          Cobertura de clientes e roteiro do vendedor
+        </p>
+      </div>
+      <CoberturaPanel />
+      <div style={{ marginTop: 40 }}>
+        <RoteiroVendedorPanel />
+      </div>
     </>
   );
 }
@@ -241,10 +295,10 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
       onSair={onSair}
     >
       {activeTab === "visao-geral" && <VisaoGeral />}
-      {activeTab === "vendas" && <EmBreve titulo="Vendas" />}
-      {activeTab === "clientes" && <EmBreve titulo="Clientes" />}
-      {activeTab === "produtos" && <EmBreve titulo="Produtos" />}
-      {activeTab === "redes" && <EmBreve titulo="Redes (dim_bd_Redes)" />}
+      {activeTab === "vendas" && <AbaVendas />}
+      {activeTab === "clientes" && <AbaClientes />}
+      {activeTab === "produtos" && <EmBreve titulo="Produtos (Curva ABC) — próxima etapa" />}
+      {activeTab === "redes" && <EmBreve titulo="Redes (dim_bd_Redes) — próxima etapa" />}
     </DashboardLayout>
   );
 }
