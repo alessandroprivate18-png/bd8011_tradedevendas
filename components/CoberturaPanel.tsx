@@ -21,14 +21,14 @@ export function CoberturaPanel() {
     loading: loadingListas,
   } = useClientesListas(dataInicio, dataFim);
 
-  const naoPositivados = dados
+  const naoPositivadosDonut = dados
     ? Math.max(dados.clientes_cadastrados - dados.clientes_ativos, 0)
     : 0;
 
   const pieData = dados
     ? [
         { name: "Positivados", value: dados.clientes_ativos },
-        { name: "Não positivados", value: naoPositivados },
+        { name: "Não positivados", value: naoPositivadosDonut },
       ]
     : [];
 
@@ -84,7 +84,7 @@ export function CoberturaPanel() {
         <div className="kpi-card">
           <div className="kpi-label">Não positivados</div>
           {loading ? <Skeleton height={36} /> : (
-            <div className="kpi-value">{formatNumero(naoPositivados)}</div>
+            <div className="kpi-value">{formatNumero(naoPositivadosDonut)}</div>
           )}
         </div>
         <div className="kpi-card">
