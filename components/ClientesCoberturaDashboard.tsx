@@ -287,7 +287,7 @@ export function ClientesCoberturaDashboard({
             </thead>
             <tbody>
               {topClientes.slice(0, 15).map((cli, idx) => {
-                const pedidos = cli.pedidos || 1;
+                const pedidos = cli.total_pedidos || 1;
                 const ticket = cli.total_vendas / pedidos;
                 return (
                   <tr
