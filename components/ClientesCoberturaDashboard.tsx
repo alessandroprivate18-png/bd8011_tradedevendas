@@ -85,7 +85,7 @@ export function ClientesCoberturaDashboard({
     return vendasMensal.map((v) => ({
       mes: v.mes,
       clientes: Number(
-        v.clientes_ativos ?? (v as any).cobertura ?? (v as any).total_clientes ?? 0
+        v.cobertura_pct ?? 0
       ),
       vendas: v.total_vendas,
       vendasFormatada: formatMoeda(v.total_vendas),
