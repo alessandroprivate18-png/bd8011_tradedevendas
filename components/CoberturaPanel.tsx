@@ -1,15 +1,25 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { formatNumero } from "@/lib/format";
+import { formatNumero, formatMoeda } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useCobertura } from "@/lib/hooks/useCobertura";
+import { useClientesListas } from "@/lib/hooks/useClientesListas";
 
 const CORES = ["#34d399", "#2a2e3a"];
 
 export function CoberturaPanel() {
   const { dados, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim } =
     useCobertura();
+  const {
+    naoPositivados,
+    totalNaoPositivados,
+    inativos,
+    totalInativos,
+    diasInativo,
+    setDiasInativo,
+    loading: loadingListas,
+  } = useClientesListas(dataInicio, dataFim);
 
   const naoPositivados = dados
     ? Math.max(dados.clientes_cadastrados - dados.clientes_ativos, 0)
@@ -108,6 +118,99 @@ export function CoberturaPanel() {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="panel" style={{ marginTop: 24 }}>
+        <h2 className="panel-title">
+          Clientes não positivados no período ({formatNumero(totalNaoPositivados)})
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--color-muted)", marginTop: -8, marginBottom: 16 }}>
+          Ordenados por valor médio histórico — os de maior potencial primeiro. Mostrando até 50.
+        </p>
+        {loadingListas ? (
+          <Skeleton height={200} />
+        ) : naoPositivados.length === 0 ? (
+          <p style={{ color: "var(--color-muted)" }}>Nenhum cliente cadastrado ficou de fora no período.</p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Vendedor</th>
+                  <th>Cidade</th>
+                  <th>Última compra</th>
+                  <th>Valor médio histórico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {naoPositivados.map((c) => (
+                  <tr key={c.ID_CLIENTE}>
+                    <td>{c.cliente}</td>
+                    <td>{c.vendedor ?? "—"}</td>
+                    <td>{c.cidade ?? "—"}</td>
+                    <td>{c.ultima_compra ?? "Nunca comprou"}</td>
+                    <td>{c.valor_medio ? formatMoeda(c.valor_medio) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="panel" style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <h2 className="panel-title" style={{ margin: 0 }}>
+            Clientes inativos ({formatNumero(totalInativos)})
+          </h2>
+          <select
+            className="filter-control"
+            value={diasInativo}
+            onChange={(e) => setDiasInativo(Number(e.target.value))}
+            style={{ width: "auto" }}
+          >
+            <option value={30}>30+ dias</option>
+            <option value={60}>60+ dias</option>
+            <option value={90}>90+ dias</option>
+            <option value={180}>180+ dias</option>
+          </select>
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-muted)", marginBottom: 16 }}>
+          Já compraram alguma vez, mas estão há {diasInativo}+ dias sem comprar. Ordenados pelos mais antigos. Mostrando até 50.
+        </p>
+        {loadingListas ? (
+          <Skeleton height={200} />
+        ) : inativos.length === 0 ? (
+          <p style={{ color: "var(--color-muted)" }}>Nenhum cliente nessa faixa de inatividade.</p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Vendedor</th>
+                  <th>Cidade</th>
+                  <th>Última compra</th>
+                  <th>Dias sem comprar</th>
+                  <th>Valor médio histórico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inativos.map((c) => (
+                  <tr key={c.ID_CLIENTE}>
+                    <td>{c.cliente}</td>
+                    <td>{c.vendedor ?? "—"}</td>
+                    <td>{c.cidade ?? "—"}</td>
+                    <td>{c.ultima_compra}</td>
+                    <td>{c.dias_sem_comprar}</td>
+                    <td>{c.valor_medio ? formatMoeda(c.valor_medio) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
