@@ -10,53 +10,64 @@ interface KpiCardsProps {
   loading: boolean;
 }
 
-export function KpiCards({ kpis, ticketMedio, loading }: KpiCardsProps) {
-  const coberturaPct = kpis.cobertura_pct ?? null;
+interface CardProps {
+  label: string;
+  value: string;
+  sublabel?: string;
+  loading: boolean;
+}
 
+function KpiCard({ label, value, sublabel, loading }: CardProps) {
+  return (
+    <div className="kpi-card">
+      <div className="kpi-label">{label}</div>
+      {loading ? (
+        <Skeleton height={36} />
+      ) : (
+        <>
+          <div className="kpi-value">{value}</div>
+          {sublabel && (
+            <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+              {sublabel}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function KpiCards({ kpis, ticketMedio, loading }: KpiCardsProps) {
   return (
     <div className="kpi-grid">
-      <div className="kpi-card">
-        <div className="kpi-label">Faturamento Total</div>
-        {loading ? (
-          <Skeleton height={36} />
-        ) : (
-          <div className="kpi-value">{formatMoeda(kpis.total_vendas)}</div>
-        )}
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-label">Volume de Pedidos</div>
-        {loading ? (
-          <Skeleton height={36} />
-        ) : (
-          <div className="kpi-value">{formatNumero(kpis.total_pedidos)}</div>
-        )}
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-label">Ticket Médio / Pedido</div>
-        {loading ? (
-          <Skeleton height={36} />
-        ) : (
-          <div className="kpi-value">{formatMoeda(ticketMedio)}</div>
-        )}
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-label">Cobertura de Clientes</div>
-        {loading ? (
-          <Skeleton height={36} />
-        ) : (
-          <div className="kpi-value" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span>{formatNumero(kpis.clientes_ativos)}</span>
-            {coberturaPct != null && (
-              <span style={{ fontSize: 13, color: "var(--color-accent)", fontWeight: 500 }}>
-                ({coberturaPct}%)
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      <KpiCard
+        label="Total vendido"
+        value={formatMoeda(kpis.total_vendas)}
+        loading={loading}
+      />
+      <KpiCard
+        label="Pedidos"
+        value={formatNumero(kpis.total_pedidos)}
+        loading={loading}
+      />
+      <KpiCard
+        label="Ticket médio"
+        value={formatMoeda(ticketMedio)}
+        loading={loading}
+      />
+      <KpiCard
+        label="Clientes ativos"
+        value={formatNumero(kpis.clientes_ativos)}
+        loading={loading}
+      />
+      <KpiCard
+        label="Cobertura de clientes"
+        value={`${kpis.cobertura_pct ?? 0}%`}
+        sublabel={`${formatNumero(kpis.clientes_ativos)} de ${formatNumero(
+          kpis.clientes_cadastrados
+        )} cadastrados`}
+        loading={loading}
+      />
     </div>
   );
 }
