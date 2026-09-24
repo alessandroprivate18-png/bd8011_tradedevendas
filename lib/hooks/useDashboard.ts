@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { DashboardData, Filtros } from "@/lib/types";
 
@@ -12,7 +12,7 @@ const FILTROS_INICIAIS: Filtros = {
   fabricante: "",
   codFabricante: "",
   clienteBusca: "",
-  tipoVenda: "",
+  tipoVenda: "1", // Venda e o padrao ao abrir o dashboard
   codVendedor: "",
 };
 
@@ -20,94 +20,101 @@ export function useDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  // "filtros" é o que está nos campos na tela (reage ao digitar/selecionar).
+  // "filtrosAplicados" é o que realmente foi usado na última consulta —
+  // só muda quando o usuário clica em "Pesquisar" ou "Limpar filtros".
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Filtros>(FILTROS_INICIAIS);
 
-  // Debounce da busca por cliente
-  const [clienteDebounced, setClienteDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setClienteDebounced(filtros.clienteBusca), 500);
-    return () => clearTimeout(t);
-  }, [filtros.clienteBusca]);
-
-  // Debounce do código do vendedor
+  // Cód. Vendedor filtra localmente a lista de vendedores já carregada,
+  // então continua "ao vivo" sem gerar uma nova consulta no banco.
   const [vendedorDebounced, setVendedorDebounced] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setVendedorDebounced(filtros.codVendedor), 400);
     return () => clearTimeout(t);
   }, [filtros.codVendedor]);
 
+  // Guarda de requisição: se, por algum motivo, duas consultas ficarem
+  // em andamento ao mesmo tempo, só o resultado da mais recente é aplicado.
+  const requestIdRef = useRef(0);
+
   const carregarDados = useCallback(async () => {
+    if (
+      filtrosAplicados.dataInicio &&
+      filtrosAplicados.dataFim &&
+      filtrosAplicados.dataInicio > filtrosAplicados.dataFim
+    ) {
+      setErro("A data inicial não pode ser depois da data final.");
+      return;
+    }
+
+    const idDaChamada = ++requestIdRef.current;
     setLoading(true);
     setErro(null);
 
-    let cancelled = false;
-
-    // Se o usuário selecionou codFabricante, usa como fabricante caso este esteja vazio
-    const fabricanteParaBusca = filtros.fabricante || filtros.codFabricante || null;
-
     try {
       const { data: result, error } = await supabase.rpc("dashboard_query", {
-        p_data_inicio: filtros.dataInicio || null,
-        p_data_fim: filtros.dataFim || null,
-        p_supervisor: filtros.supervisor || null,
-        p_ramo: filtros.ramo || null,
-        p_fabricante: fabricanteParaBusca,
-        p_cliente: clienteDebounced || null,
-        p_tipo: filtros.tipoVenda ? Number(filtros.tipoVenda) : null,
+        p_tipo: filtrosAplicados.tipoVenda ? Number(filtrosAplicados.tipoVenda) : 1,
+        p_data_inicio: filtrosAplicados.dataInicio || null,
+        p_data_fim: filtrosAplicados.dataFim || null,
+        p_supervisor: filtrosAplicados.supervisor || null,
+        p_ramo: filtrosAplicados.ramo || null,
+        p_fabricante: filtrosAplicados.fabricante || null,
+        p_cod_fabricante: filtrosAplicados.codFabricante
+          ? Number(filtrosAplicados.codFabricante)
+          : null,
+        p_cliente: filtrosAplicados.clienteBusca || null,
       });
 
-      if (!cancelled) {
-        if (error) {
-          // Timeout do banco de dados ao buscar períodos longos
-          if (
-            error.code === "57014" ||
-            error.message?.toLowerCase().includes("timeout")
-          ) {
-            setErro(
-              "⚠️ O período de datas selecionado contém um volume expressivo de registros e atingiu o tempo limite do banco. Dica: selecione um intervalo mais curto (ex: 7 a 15 dias) para resposta imediata."
-            );
-          } else {
-            setErro(error.message);
-          }
-        } else if (result) {
-          const resData = result as DashboardData;
-          setData(resData);
+      if (idDaChamada !== requestIdRef.current) return;
+
+      if (error) {
+        setData(null);
+        if (
+          error.code === "57014" ||
+          error.message?.toLowerCase().includes("timeout")
+        ) {
+          setErro(
+            "⚠️ A consulta atingiu o tempo limite. Tente um período menor, ou aplique menos filtros de uma vez."
+          );
+        } else {
+          setErro(error.message);
         }
+      } else if (result) {
+        setData(result as DashboardData);
       }
     } catch (e: unknown) {
-      if (!cancelled) {
-        setErro(
-          e instanceof Error ? e.message : "Erro na consulta com o Supabase."
-        );
-      }
+      if (idDaChamada !== requestIdRef.current) return;
+      setData(null);
+      setErro(
+        e instanceof Error
+          ? e.message
+          : "Não foi possível carregar os dados. Verifique a conexão com o Supabase."
+      );
     } finally {
-      if (!cancelled) {
+      if (idDaChamada === requestIdRef.current) {
         setLoading(false);
       }
     }
+  }, [filtrosAplicados]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    filtros.dataInicio,
-    filtros.dataFim,
-    filtros.supervisor,
-    filtros.ramo,
-    filtros.fabricante,
-    filtros.codFabricante,
-    filtros.tipoVenda,
-    clienteDebounced,
-  ]);
-
+  // Roda uma vez ao montar (com os filtros iniciais) e de novo toda vez
+  // que "filtrosAplicados" mudar — ou seja, quando o usuário confirmar
+  // a busca ou limpar os filtros. Nunca a cada tecla digitada.
   useEffect(() => {
-    const cleanup = carregarDados();
-    return () => {
-      cleanup.then((fn) => fn?.());
-    };
+    carregarDados();
   }, [carregarDados]);
 
-  // Filtro complementar por vendedor caso especificado
+  const buscar = useCallback(() => {
+    setFiltrosAplicados(filtros);
+  }, [filtros]);
+
+  const limparFiltros = useCallback(() => {
+    setFiltros(FILTROS_INICIAIS);
+    setFiltrosAplicados(FILTROS_INICIAIS);
+  }, []);
+
   const dadosFiltrados = useMemo(() => {
     if (!data) return null;
     if (!vendedorDebounced) return data;
@@ -123,23 +130,17 @@ export function useDashboard() {
     };
   }, [data, vendedorDebounced]);
 
-  const kpis = useMemo(() => {
-    const base = dadosFiltrados?.kpis ?? {
-      total_vendas: 0,
-      total_pedidos: 0,
-      clientes_ativos: 0,
-    };
-
-    // Cobertura de clientes estimada com base na média de ativação
-    const cobertura = base.clientes_ativos > 0 ? 84.5 : 0;
-    const crescimento = base.total_pedidos > 0 ? 6.2 : 0;
-
-    return {
-      ...base,
-      cobertura_pct: cobertura,
-      crescimento_clientes_pct: crescimento,
-    };
-  }, [dadosFiltrados]);
+  const kpis = useMemo(
+    () =>
+      dadosFiltrados?.kpis ?? {
+        total_vendas: 0,
+        total_pedidos: 0,
+        clientes_ativos: 0,
+        clientes_cadastrados: 0,
+        cobertura_pct: 0,
+      },
+    [dadosFiltrados]
+  );
 
   const ticketMedio = useMemo(
     () => (kpis.total_pedidos > 0 ? kpis.total_vendas / kpis.total_pedidos : 0),
@@ -155,16 +156,28 @@ export function useDashboard() {
           filtros.ramo ||
           filtros.fabricante ||
           filtros.codFabricante ||
-          filtros.tipoVenda ||
+          filtros.tipoVenda !== "1" ||
           filtros.codVendedor ||
-          clienteDebounced
+          filtros.clienteBusca
       ),
-    [filtros, clienteDebounced]
+    [filtros]
   );
 
-  const limparFiltros = useCallback(() => {
-    setFiltros(FILTROS_INICIAIS);
-  }, []);
+  // Indica se há mudanças nos campos que ainda não foram buscadas —
+  // usado pra destacar visualmente o botão "Pesquisar".
+  const temFiltrosPendentes = useMemo(() => {
+    const chaves: (keyof Filtros)[] = [
+      "dataInicio",
+      "dataFim",
+      "supervisor",
+      "ramo",
+      "fabricante",
+      "codFabricante",
+      "clienteBusca",
+      "tipoVenda",
+    ];
+    return chaves.some((chave) => filtros[chave] !== filtrosAplicados[chave]);
+  }, [filtros, filtrosAplicados]);
 
   return {
     data: dadosFiltrados,
@@ -175,6 +188,8 @@ export function useDashboard() {
     filtros,
     setFiltros,
     temFiltrosAtivos,
+    temFiltrosPendentes,
+    buscar,
     limparFiltros,
     carregarDados,
   };

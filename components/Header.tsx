@@ -1,18 +1,29 @@
 "use client";
 
-import { Menu, Sun, Moon, Bell, RefreshCw } from "lucide-react";
+import { Menu, Sun, Moon, Bell, RefreshCw, LogOut } from "lucide-react";
 import { useTheme } from "@/lib/hooks/useTheme";
 
 interface HeaderProps {
   onOpenMobileSidebar: () => void;
   onRefreshData?: () => void;
   refreshing?: boolean;
+  usuarioNome: string;
+  onSair: () => void;
+}
+
+function iniciais(nome: string) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
 export function Header({
   onOpenMobileSidebar,
   onRefreshData,
   refreshing = false,
+  usuarioNome,
+  onSair,
 }: HeaderProps) {
   const { isDark, toggleTheme, mounted } = useTheme();
 
@@ -82,9 +93,14 @@ export function Header({
 
         {/* Perfil */}
         <div className="user-badge">
-          <div className="user-avatar">AS</div>
-          <span className="user-name">Alessandro Silva</span>
+          <div className="user-avatar">{iniciais(usuarioNome)}</div>
+          <span className="user-name">{usuarioNome}</span>
         </div>
+
+        {/* Sair */}
+        <button onClick={onSair} className="icon-button" title="Sair">
+          <LogOut size={18} />
+        </button>
       </div>
 
       <style jsx>{`

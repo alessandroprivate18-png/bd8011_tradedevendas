@@ -5,6 +5,8 @@ export type VendaMensal = {
   total_vendas: number;
   total_pedidos: number;
   crescimento_pct: number | null;
+  cobertura_pct: number | null;
+  cobertura_crescimento_pp: number | null;
 };
 
 export type TopVendedor = {
@@ -30,8 +32,8 @@ export type Kpis = {
   total_vendas: number;
   total_pedidos: number;
   clientes_ativos: number;
-  cobertura_pct?: number;
-  crescimento_clientes_pct?: number;
+  clientes_cadastrados: number;
+  cobertura_pct: number;
 };
 
 export type DashboardData = {
@@ -42,8 +44,8 @@ export type DashboardData = {
   top_clientes: TopCliente[];
 };
 
-export type FabricanteItem = {
-  codigo: string;
+export type FabricanteCodigo = {
+  codigo: number;
   nome: string;
 };
 
@@ -51,7 +53,7 @@ export type FilterOptions = {
   supervisores: string[];
   ramos: string[];
   fabricantes: string[];
-  fabricantesComCodigo?: FabricanteItem[];
+  fabricantes_codigo: FabricanteCodigo[];
 };
 
 export type Filtros = {
@@ -60,14 +62,13 @@ export type Filtros = {
   supervisor: string;
   ramo: string;
   fabricante: string;
-  codFabricante: string;
-  clienteBusca: string;
+  codFabricante: string; // codigo do fabricante (Cod_Fabricante), separado do nome
+  clienteBusca: string; // aceita nome OU codigo do cliente
   tipoVenda: string; // 1=Venda, 2=Troca, 3=Bonificação, 4=Consignado, 5=Outras Saídas, 6=Merchandising
   codVendedor: string; // Código ou nome do vendedor
 };
 
 export const TIPOS_VENDA = [
-  { id: "", label: "Todos os tipos" },
   { id: "1", label: "1 - Venda" },
   { id: "2", label: "2 - Troca" },
   { id: "3", label: "3 - Bonificação" },
@@ -86,4 +87,11 @@ export type RedeCliente = {
   id_Redes: number;
 };
 
-export type ActiveTab = "visao-geral" | "vendas" | "clientes" | "produtos" | "redes";
+export type ActiveTab =
+  | "visao-geral"
+  | "vendas"
+  | "clientes"
+  | "produtos"
+  | "redes"
+  | "gerencial"
+  | "roteiro";

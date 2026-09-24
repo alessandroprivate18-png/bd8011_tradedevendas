@@ -13,17 +13,25 @@ interface KpiCardsProps {
 interface CardProps {
   label: string;
   value: string;
+  sublabel?: string;
   loading: boolean;
 }
 
-function KpiCard({ label, value, loading }: CardProps) {
+function KpiCard({ label, value, sublabel, loading }: CardProps) {
   return (
     <div className="kpi-card">
       <div className="kpi-label">{label}</div>
       {loading ? (
         <Skeleton height={36} />
       ) : (
-        <div className="kpi-value">{value}</div>
+        <>
+          <div className="kpi-value">{value}</div>
+          {sublabel && (
+            <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+              {sublabel}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -43,13 +51,21 @@ export function KpiCards({ kpis, ticketMedio, loading }: KpiCardsProps) {
         loading={loading}
       />
       <KpiCard
+        label="Ticket médio"
+        value={formatMoeda(ticketMedio)}
+        loading={loading}
+      />
+      <KpiCard
         label="Clientes ativos"
         value={formatNumero(kpis.clientes_ativos)}
         loading={loading}
       />
       <KpiCard
-        label="Ticket médio"
-        value={formatMoeda(ticketMedio)}
+        label="Cobertura de clientes"
+        value={`${kpis.cobertura_pct ?? 0}%`}
+        sublabel={`${formatNumero(kpis.clientes_ativos)} de ${formatNumero(
+          kpis.clientes_cadastrados
+        )} cadastrados`}
         loading={loading}
       />
     </div>

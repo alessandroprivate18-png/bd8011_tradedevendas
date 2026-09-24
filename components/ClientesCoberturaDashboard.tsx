@@ -11,8 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LabelList,
 } from "recharts";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
@@ -24,9 +23,9 @@ interface ClientesCoberturaDashboardProps {
 }
 
 const TOOLTIP_STYLE = {
-  background: "var(--color-surface)",
-  border: "1px solid var(--color-border)",
-  color: "var(--color-text)",
+  background: "#151A23",
+  border: "1px solid #232936",
+  color: "#F1F5F9",
   borderRadius: "8px",
 };
 
@@ -34,182 +33,315 @@ export function ClientesCoberturaDashboard({
   data,
   loading,
 }: ClientesCoberturaDashboardProps) {
-  const kpis = data?.kpis ?? { total_vendas: 0, total_pedidos: 0, clientes_ativos: 0 };
+  const kpis = data?.kpis ?? {
+    total_vendas: 0,
+    total_pedidos: 0,
+    clientes_ativos: 0,
+    cobertura_pct: null,
+  };
 
-  // Simulação de distribuição de cobertura diária baseada nos pedidos reais do mês
-  const coberturaDias = useMemo(() => {
-    const totalMes = kpis.clientes_ativos || 8500;
-    const diasNoMes = 28;
-    const mediaDia = Math.round(totalMes / diasNoMes);
+  const topClientes = useMemo(() => data?.top_clientes ?? [], [data]);
+  const topVendedores = useMemo(() => data?.top_vendedores ?? [], [data]);
+  const vendasMensal = useMemo(() => data?.vendas_mensal ?? [], [data]);
+  const topProdutos = useMemo(() => data?.top_produtos ?? [], [data]);
 
-    return Array.from({ length: diasNoMes }, (_, i) => {
-      const dia = i + 1;
-      const variacao = Math.sin(dia * 0.7) * 0.25 + (Math.random() * 0.1 - 0.05);
-      const clientesDia = Math.max(80, Math.round(mediaDia * (1 + variacao)));
-      const pedidosDia = Math.round(clientesDia * 1.25);
-      const vendasDia = Math.round(pedidosDia * (kpis.total_vendas / (kpis.total_pedidos || 1)));
+  // 1. Insights Automáticos em Linguagem Executiva
+  const insights = useMemo(() => {
+    const clienteLider = topClientes[0] ?? { Cliente: "—", total_vendas: 0 };
+    const produtoLider = topProdutos[0] ?? { Produto: "—", total_vendas: 0 };
+    const vendedorLider = topVendedores[0] ?? { Vendedor: "—", total_vendas: 0, total_pedidos: 0 };
 
-      return {
-        dia: `Dia ${dia}`,
-        clientes: clientesDia,
-        pedidos: pedidosDia,
-        vendas: vendasDia,
-        metaCobertura: Math.round(mediaDia * 1.1),
-      };
-    });
-  }, [kpis]);
+    const ticketMedio =
+      kpis.total_pedidos > 0 ? kpis.total_vendas / kpis.total_pedidos : 0;
 
-  const totalPositivados = useMemo(() => {
-    return coberturaDias.reduce((acc, cur) => acc + cur.clientes, 0);
-  }, [coberturaDias]);
+    return {
+      clienteLider,
+      produtoLider,
+      vendedorLider,
+      ticketMedio,
+      resumo: `No período analisado, foram faturados ${formatMoeda(
+        kpis.total_vendas
+      )} distribuídos em ${formatNumero(kpis.total_pedidos)} pedidos, alcançando ${formatNumero(
+        kpis.clientes_ativos
+      )} clientes ativos na carteira. O ticket médio registrado foi de ${formatMoeda(
+        ticketMedio
+      )} por pedido faturado.`,
+    };
+  }, [kpis, topClientes, topProdutos, topVendedores]);
 
-  const mediaPositivacaoDia = Math.round(totalPositivados / (coberturaDias.length || 1));
+  // 2. Dados do Gráfico de CPF/CNPJ (Limitado aos top clientes)
+  const dadosCpfCnpj = useMemo(() => {
+    return topClientes.slice(0, 7).map((c) => ({
+      nomeCurto: (c.Cliente || "Cliente").substring(0, 18),
+      nomeCompleto: c.Cliente,
+      total: Number(c.total_vendas || 0),
+      totalFormatado: formatMoeda(c.total_vendas),
+      pedidos: c.pedidos || 1,
+    }));
+  }, [topClientes]);
+
+  // 3. Dados de Evolução da Cobertura de Clientes
+  const dadosCoberturaMensal = useMemo(() => {
+    return vendasMensal.map((v) => ({
+      mes: v.mes,
+      clientes: Number(
+        v.clientes_ativos ?? (v as any).cobertura ?? (v as any).total_clientes ?? 0
+      ),
+      vendas: v.total_vendas,
+      vendasFormatada: formatMoeda(v.total_vendas),
+    }));
+  }, [vendasMensal]);
 
   return (
-    <div>
-      {/* KPIs de Cobertura */}
-      <div className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-label">Clientes Ativos na Base</div>
-          {loading ? <Skeleton height={36} /> : <div className="kpi-value">{formatNumero(kpis.clientes_ativos)}</div>}
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Média de Clientes / Dia</div>
-          {loading ? <Skeleton height={36} /> : <div className="kpi-value">{formatNumero(mediaPositivacaoDia)}</div>}
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Total de Pedidos</div>
-          {loading ? <Skeleton height={36} /> : <div className="kpi-value">{formatNumero(kpis.total_pedidos)}</div>}
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Frequência Média de Compra</div>
-          {loading ? (
-            <Skeleton height={36} />
-          ) : (
-            <div className="kpi-value">
-              {kpis.clientes_ativos > 0 ? (kpis.total_pedidos / kpis.clientes_ativos).toFixed(1) + "x" : "0x"}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Gráfico de Cobertura de Clientes por Dia */}
-      <div className="panel">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div>
-            <h2 className="panel-title" style={{ marginBottom: 4 }}>
-              Cobertura & Positivação Diária de Clientes
-            </h2>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--color-muted)" }}>
-              Acompanhamento diário de quantos clientes únicos compraram no período vs. meta diária
-            </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* ==================================================================== */}
+      {/* ÁREA DE INSIGHTS AUTOMÁTICOS EM LINGUAGEM EXECUTIVA                   */}
+      {/* ==================================================================== */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 16,
+        }}
+      >
+        <div className="panel" style={{ padding: "16px 20px" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-muted)", letterSpacing: "0.05em" }}>
+            Cliente Top Faturamento
           </div>
-          <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 12, height: 12, background: "var(--color-accent)", borderRadius: 3 }} />
-              Positivados no Dia
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 12, height: 2, background: "var(--color-success)" }} />
-              Meta de Cobertura
-            </span>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#00F5FF", marginTop: 4, fontVariant: "normal" }}>
+            {loading ? <Skeleton height={24} /> : insights.clienteLider.Cliente}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+            {formatMoeda(insights.clienteLider.total_vendas)}
           </div>
         </div>
 
-        {loading ? (
-          <Skeleton height={300} />
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={coberturaDias}>
-              <defs>
-                <linearGradient id="gradClientes" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="dia" stroke="var(--color-muted)" tick={{ fontSize: 11 }} />
-              <YAxis stroke="var(--color-muted)" tick={{ fontSize: 11 }} />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                formatter={(v: number, name: string) => [
-                  name === "vendas" ? formatMoeda(Number(v)) : formatNumero(Number(v)),
-                  name === "clientes" ? "Clientes Positivados" : name === "metaCobertura" ? "Meta de Cobertura" : name,
-                ]}
-              />
-              <Area
-                type="monotone"
-                dataKey="clientes"
-                stroke="var(--color-accent)"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#gradClientes)"
-                name="clientes"
-              />
-              <Line
-                type="monotone"
-                dataKey="metaCobertura"
-                stroke="var(--color-success)"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                dot={false}
-                name="metaCobertura"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
+        <div className="panel" style={{ padding: "16px 20px" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-muted)", letterSpacing: "0.05em" }}>
+            Produto Líder em Vendas
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#00F5FF", marginTop: 4, fontVariant: "normal" }}>
+            {loading ? <Skeleton height={24} /> : insights.produtoLider.Produto}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+            {formatMoeda(insights.produtoLider.total_vendas)}
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: "16px 20px" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-muted)", letterSpacing: "0.05em" }}>
+            Melhor Vendedor em Vendas
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#00F5FF", marginTop: 4, fontVariant: "normal" }}>
+            {loading ? <Skeleton height={24} /> : insights.vendedorLider.Vendedor}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+            {formatMoeda(insights.vendedorLider.total_vendas)}
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: "16px 20px" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--color-muted)", letterSpacing: "0.05em" }}>
+            Cobertura da Carteira
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#34D399", marginTop: 4, fontVariant: "normal" }}>
+            {loading ? <Skeleton height={24} /> : `${formatNumero(kpis.clientes_ativos)} clientes`}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>
+            {kpis.cobertura_pct != null ? `${kpis.cobertura_pct}% de positivação` : "Clientes ativos no período"}
+          </div>
+        </div>
       </div>
 
-      {/* Grid: Clientes por Volume e Ranking de Principais Compradores */}
+      {/* Resumo Executivo em Parágrafo */}
+      <div
+        className="panel"
+        style={{
+          borderLeft: "4px solid #00F5FF",
+          padding: "16px 20px",
+          background: "rgba(0, 245, 255, 0.03)",
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#00F5FF", textTransform: "uppercase" }}>
+          Diagnóstico do Período:
+        </span>
+        <p style={{ fontSize: 13, color: "var(--color-text)", marginTop: 4, lineHeight: 1.6, fontVariant: "normal" }}>
+          {insights.resumo}
+        </p>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* GRÁFICOS COM VALORES SEMPRE VISÍVEIS (DATA LABELS)                   */}
+      {/* ==================================================================== */}
       <div className="grid-2col">
-        {/* Vendas Diárias geradas pelos clientes */}
+        {/* Gráfico 1: Vendas por CPF/CNPJ (Barras com valor permanente no final) */}
         <div className="panel">
-          <h2 className="panel-title">Volume Financeiro Diário Gerado</h2>
+          <h2 className="panel-title">Vendas por Cliente / Documento (Faturamento na Barra)</h2>
           {loading ? (
-            <Skeleton height={280} />
+            <Skeleton height={320} />
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={coberturaDias.slice(0, 15)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="dia" stroke="var(--color-muted)" tick={{ fontSize: 10 }} />
-                <YAxis stroke="var(--color-muted)" tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => formatMoeda(Number(v))} />
-                <Bar dataKey="vendas" fill="var(--color-accent)" radius={[4, 4, 0, 0]} name="Total Vendido" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ width: "100%", height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={dadosCpfCnpj}
+                  layout="vertical"
+                  margin={{ top: 10, right: 110, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="nomeCurto"
+                    stroke="var(--color-muted)"
+                    width={130}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v: any) => formatMoeda(Number(v))}
+                  />
+                  <Bar dataKey="total" fill="#00F5FF" radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="totalFormatado"
+                      position="right"
+                      fill="#00F5FF"
+                      style={{ fontSize: 11, fontWeight: "bold" }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
 
-        {/* Tabela dos Top Clientes */}
+        {/* Gráfico 2: Evolução de Clientes Atendidos por Mês (Linha com valor no ponto) */}
         <div className="panel">
-          <h2 className="panel-title">Ranking de Clientes Mais Representativos</h2>
+          <h2 className="panel-title">Evolução da Cobertura de Clientes (Mês a Mês)</h2>
           {loading ? (
-            <Skeleton height={280} />
+            <Skeleton height={320} />
           ) : (
-            <div className="table-wrapper" style={{ marginTop: 0 }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th>Pedidos</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data?.top_clientes ?? []).slice(0, 7).map((c) => (
-                    <tr key={c["CPF/CNPJ"]}>
-                      <td style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        <div style={{ fontWeight: 600 }}>{c.Cliente}</div>
-                        <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{c["CPF/CNPJ"]}</div>
-                      </td>
-                      <td>{c.total_pedidos}</td>
-                      <td style={{ fontWeight: 600, color: "var(--color-success)" }}>{formatMoeda(Number(c.total_vendas))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ width: "100%", height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={dadosCoberturaMensal}
+                  margin={{ top: 25, right: 30, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="mes" stroke="var(--color-muted)" tick={{ fontSize: 12 }} />
+                  <YAxis stroke="var(--color-muted)" tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v: any) => [`${formatNumero(Number(v))} clientes`, "Cobertura"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="clientes"
+                    stroke="#34D399"
+                    strokeWidth={3}
+                    dot={{ r: 6, fill: "#34D399" }}
+                    activeDot={{ r: 8 }}
+                  >
+                    <LabelList
+                      dataKey="clientes"
+                      position="top"
+                      offset={10}
+                      fill="#F1F5F9"
+                      style={{ fontSize: 11, fontWeight: "bold" }}
+                      formatter={(v: any) => formatNumero(Number(v))}
+                    />
+                  </Line>
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* TABELA COM ALINHAMENTO ESTRUTURAL RÍGIDO (TABLE-LAYOUT: FIXED)       */}
+      {/* ==================================================================== */}
+      <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
+          <h2 className="panel-title" style={{ margin: 0 }}>
+            Carteira de Clientes & Positivação
+          </h2>
+        </div>
+
+        <div style={{ overflowX: "auto", width: "100%" }}>
+          <table
+            style={{
+              width: "100%",
+              tableLayout: "fixed",
+              borderCollapse: "collapse",
+            }}
+          >
+            <thead>
+              <tr style={{ height: 48, background: "rgba(255, 255, 255, 0.02)" }}>
+                <th style={{ width: "60px", textAlign: "center", padding: "12px 16px" }}>Pos.</th>
+                <th style={{ width: "320px", textAlign: "left", padding: "12px 16px" }}>Cliente</th>
+                <th style={{ width: "180px", textAlign: "right", padding: "12px 16px" }}>Total Vendido</th>
+                <th style={{ width: "120px", textAlign: "right", padding: "12px 16px" }}>Pedidos</th>
+                <th style={{ width: "160px", textAlign: "right", padding: "12px 16px" }}>Ticket Médio</th>
+                <th style={{ width: "130px", textAlign: "center", padding: "12px 16px" }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topClientes.slice(0, 15).map((cli, idx) => {
+                const pedidos = cli.pedidos || 1;
+                const ticket = cli.total_vendas / pedidos;
+                return (
+                  <tr
+                    key={cli.Cliente + idx}
+                    style={{
+                      height: 48,
+                      borderBottom: "1px solid var(--color-border)",
+                    }}
+                  >
+                    <td style={{ textAlign: "center", padding: "12px 16px", color: "var(--color-muted)" }}>
+                      #{idx + 1}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 16px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontWeight: 600,
+                      }}
+                      title={cli.Cliente}
+                    >
+                      {cli.Cliente}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "12px 16px", color: "#34D399", fontWeight: 700 }}>
+                      {formatMoeda(cli.total_vendas)}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "12px 16px" }}>
+                      {formatNumero(pedidos)}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "12px 16px", color: "var(--color-muted)" }}>
+                      {formatMoeda(ticket)}
+                    </td>
+                    <td style={{ textAlign: "center", padding: "12px 16px" }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          background: "rgba(16, 185, 129, 0.15)",
+                          color: "#34D399",
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Positivado
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

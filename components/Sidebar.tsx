@@ -11,6 +11,8 @@ import {
   ChevronRight,
   TrendingUp,
   Radio,
+  BarChart3,
+  MapPin,
 } from "lucide-react";
 import type { ActiveTab } from "@/lib/types";
 
@@ -168,6 +170,22 @@ export function Sidebar({
           badge="Curva ABC"
           badgeColor="#f59e0b"
           onClick={() => handleSelect("produtos")}
+        />
+
+        <NavItem
+          icon={BarChart3}
+          label="Gerencial"
+          active={activeTab === "gerencial"}
+          collapsed={collapsed}
+          onClick={() => handleSelect("gerencial")}
+        />
+
+        <NavItem
+          icon={MapPin}
+          label="Roteiro"
+          active={activeTab === "roteiro"}
+          collapsed={collapsed}
+          onClick={() => handleSelect("roteiro")}
         />
 
         {!collapsed && <div className="nav-category" style={{ marginTop: 12 }}>Redes & Estrutura</div>}

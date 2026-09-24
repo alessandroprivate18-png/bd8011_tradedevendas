@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { TIPOS_VENDA } from "@/lib/types";
 import type { FilterOptions, Filtros } from "@/lib/types";
 
@@ -8,7 +9,9 @@ interface FilterBarProps {
   filtros: Filtros;
   onChange: (filtros: Filtros) => void;
   temFiltrosAtivos: boolean;
+  temFiltrosPendentes: boolean;
   onLimpar: () => void;
+  onBuscar: () => void;
 }
 
 export function FilterBar({
@@ -16,29 +19,16 @@ export function FilterBar({
   filtros,
   onChange,
   temFiltrosAtivos,
+  temFiltrosPendentes,
   onLimpar,
+  onBuscar,
 }: FilterBarProps) {
   function set(field: keyof Filtros, value: string) {
     onChange({ ...filtros, [field]: value });
   }
 
-  // Sincronização inteligente entre Cód. Fabricante e Nome do Fabricante
-  function handleCodFabricanteChange(cod: string) {
-    const fabItem = options.fabricantesComCodigo?.find((f) => f.codigo === cod);
-    onChange({
-      ...filtros,
-      codFabricante: cod,
-      fabricante: fabItem ? fabItem.nome : filtros.fabricante,
-    });
-  }
-
-  function handleFabricanteChange(nome: string) {
-    const fabItem = options.fabricantesComCodigo?.find((f) => f.nome === nome);
-    onChange({
-      ...filtros,
-      fabricante: nome,
-      codFabricante: fabItem ? fabItem.codigo : filtros.codFabricante,
-    });
+  function handleEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") onBuscar();
   }
 
   return (
@@ -74,7 +64,7 @@ export function FilterBar({
             className="filter-control"
             value={filtros.tipoVenda}
             onChange={(e) => set("tipoVenda", e.target.value)}
-            style={{ fontWeight: filtros.tipoVenda ? 600 : 400 }}
+            style={{ fontWeight: 600 }}
           >
             {TIPOS_VENDA.map((t) => (
               <option key={t.id} value={t.id}>
@@ -84,7 +74,7 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* Cód. Vendedor */}
+        {/* Cód. Vendedor (filtra localmente, em tempo real) */}
         <div className="filter-field">
           <label className="filter-label" style={{ fontWeight: 600 }}>
             Cód. Vend / Vendedor
@@ -92,22 +82,22 @@ export function FilterBar({
           <input
             type="text"
             className="filter-control"
-            placeholder="Ex: 1021 ou Marcelo..."
+            placeholder="Ex: 102 ou Marcelo..."
             value={filtros.codVendedor}
             onChange={(e) => set("codVendedor", e.target.value)}
             style={{ minWidth: 150 }}
           />
         </div>
 
-        {/* Supervisor (dim_bd_Equipe) */}
+        {/* Supervisor */}
         <div className="filter-field">
-          <label className="filter-label">Supervisor (dim_bd_Equipe)</label>
+          <label className="filter-label">Supervisor</label>
           <select
             className="filter-control"
             value={filtros.supervisor}
             onChange={(e) => set("supervisor", e.target.value)}
           >
-            <option value="">Todos os supervisores</option>
+            <option value="">Todos</option>
             {options.supervisores.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -116,15 +106,15 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* Ramo de Atividade (ft_Vendas_8011) */}
+        {/* Ramo */}
         <div className="filter-field">
-          <label className="filter-label">Ramo Atividade (ft_Vendas_8011)</label>
+          <label className="filter-label">Ramo de atividade</label>
           <select
             className="filter-control"
             value={filtros.ramo}
             onChange={(e) => set("ramo", e.target.value)}
           >
-            <option value="">Todos os ramos</option>
+            <option value="">Todos</option>
             {options.ramos.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -133,36 +123,35 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* Cod. Fabricante (ft_Vendas_8011) */}
+        {/* Fabricante */}
         <div className="filter-field">
-          <label className="filter-label">Cód. Fabricante</label>
+          <label className="filter-label">Fabricante</label>
           <select
             className="filter-control"
-            value={filtros.codFabricante}
-            onChange={(e) => handleCodFabricanteChange(e.target.value)}
-            style={{ minWidth: 120 }}
+            value={filtros.fabricante}
+            onChange={(e) => set("fabricante", e.target.value)}
           >
-            <option value="">Todos os códigos</option>
-            {(options.fabricantesComCodigo ?? []).map((f) => (
-              <option key={f.codigo} value={f.codigo}>
-                {f.codigo} - {f.nome.length > 20 ? f.nome.substring(0, 20) + "..." : f.nome}
+            <option value="">Todos</option>
+            {options.fabricantes.map((f) => (
+              <option key={f} value={f}>
+                {f}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Fabricante (ft_Vendas_8011) */}
+        {/* Cód. Fabricante */}
         <div className="filter-field">
-          <label className="filter-label">Fabricante (ft_Vendas_8011)</label>
+          <label className="filter-label">Cód. Fabricante</label>
           <select
             className="filter-control"
-            value={filtros.fabricante}
-            onChange={(e) => handleFabricanteChange(e.target.value)}
+            value={filtros.codFabricante}
+            onChange={(e) => set("codFabricante", e.target.value)}
           >
-            <option value="">Todos os fabricantes</option>
-            {options.fabricantes.map((f) => (
-              <option key={f} value={f}>
-                {f}
+            <option value="">Todos</option>
+            {options.fabricantes_codigo.map((f) => (
+              <option key={f.codigo} value={f.codigo}>
+                {f.codigo} - {f.nome}
               </option>
             ))}
           </select>
@@ -174,11 +163,31 @@ export function FilterBar({
           <input
             type="text"
             className="filter-control filter-input"
-            placeholder="Nome do cliente ou CNPJ..."
+            placeholder="Nome ou código do cliente..."
             value={filtros.clienteBusca}
             onChange={(e) => set("clienteBusca", e.target.value)}
+            onKeyDown={handleEnter}
           />
         </div>
+
+        {/* Pesquisar: só aqui a consulta é realmente disparada */}
+        <button
+          onClick={onBuscar}
+          className="btn-clear"
+          style={{
+            background: temFiltrosPendentes ? "var(--color-accent)" : "transparent",
+            color: temFiltrosPendentes ? "#fff" : "var(--color-accent)",
+            border: "1px solid var(--color-accent)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontWeight: 600,
+          }}
+          title="Aplicar filtros e buscar"
+        >
+          <Search size={15} />
+          Pesquisar
+        </button>
 
         {temFiltrosAtivos && (
           <button className="btn-clear" onClick={onLimpar}>

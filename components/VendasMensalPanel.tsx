@@ -43,10 +43,7 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
         <>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={rows}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--color-border)"
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="mes" stroke="var(--color-muted)" />
               <YAxis stroke="var(--color-muted)" />
               <Tooltip
@@ -66,7 +63,7 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Tabela de crescimento mês a mês */}
+          {/* Tabela de crescimento mês a mês com Cobertura de Clientes */}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -74,7 +71,9 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                   <th>Mês</th>
                   <th>Total vendido</th>
                   <th>Pedidos</th>
-                  <th>Crescimento vs. mês anterior</th>
+                  <th>Crescimento vendas</th>
+                  <th>Cobertura de clientes</th>
+                  <th>Crescimento cobertura</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,12 +90,31 @@ export function VendasMensalPanel({ dados, loading }: VendasMensalPanelProps) {
                       ? "—"
                       : `${v.crescimento_pct > 0 ? "+" : ""}${v.crescimento_pct}%`;
 
+                  const cobLabel =
+                    v.cobertura_pct == null ? "—" : `${v.cobertura_pct}%`;
+
+                  const cobCrescClass =
+                    v.cobertura_crescimento_pp == null
+                      ? "growth-neutral"
+                      : v.cobertura_crescimento_pp >= 0
+                      ? "growth-positive"
+                      : "growth-negative";
+
+                  const cobCrescLabel =
+                    v.cobertura_crescimento_pp == null
+                      ? "—"
+                      : `${v.cobertura_crescimento_pp > 0 ? "+" : ""}${v.cobertura_crescimento_pp} p.p.`;
+
                   return (
                     <tr key={v.mes}>
                       <td>{v.mes}</td>
                       <td>{formatMoeda(v.total_vendas)}</td>
                       <td>{v.total_pedidos}</td>
                       <td className={growthClass}>{growthLabel}</td>
+                      <td>
+                        <strong>{cobLabel}</strong>
+                      </td>
+                      <td className={cobCrescClass}>{cobCrescLabel}</td>
                     </tr>
                   );
                 })}
