@@ -76,7 +76,7 @@ export function ClientesCoberturaDashboard({
       nomeCompleto: c.Cliente,
       total: Number(c.total_vendas || 0),
       totalFormatado: formatMoeda(c.total_vendas),
-      pedidos: c.pedidos || 1,
+      pedidos: c.total_pedidos || 1,
     }));
   }, [topClientes]);
 
