@@ -31,9 +31,13 @@ export type KpisRedes = {
 export type LojaRede = {
   cliente: string;
   cpf_cnpj: string;
-  nome_loja: string | null;
+  codigo_cliente: number;
+  bairro: string | null;
+  cidade: string | null;
   total_vendas: number;
   pedidos: number;
+  volume: number;
+  qt_skus: number;
   ticket_medio: number | null;
   total_ano_anterior: number | null;
   variacao_yoy_pct: number | null;
