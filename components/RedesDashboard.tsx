@@ -3,6 +3,8 @@
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,20 +22,21 @@ const TOOLTIP_STYLE = {
   borderRadius: "8px",
 };
 
-export function RedesDashboard() {
-  const {
-    redes,
-    totalRedes,
-    totalLojas,
-    loading,
-    erro,
-    dataInicio,
-    setDataInicio,
-    dataFim,
-    setDataFim,
-  } = useRedes();
+function Variacao({ pct }: { pct: number | null }) {
+  if (pct == null) return <span style={{ color: "var(--color-muted)" }}>—</span>;
+  return (
+    <span style={{ color: pct >= 0 ? "#34d399" : "#ff9aa6" }}>
+      {pct > 0 ? "+" : ""}
+      {pct}%
+    </span>
+  );
+}
 
-  const top15 = redes.slice(0, 15);
+export function RedesDashboard() {
+  const { kpis, ranking, mensal, yoyDisponivel, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim } =
+    useRedes();
+
+  const top15 = ranking.slice(0, 15);
 
   return (
     <>
@@ -68,28 +71,52 @@ export function RedesDashboard() {
 
       <div className="kpi-grid" style={{ marginBottom: 24 }}>
         <div className="kpi-card">
-          <div className="kpi-label">Redes cadastradas</div>
-          {loading ? <Skeleton height={36} /> : <div className="kpi-value">{totalRedes}</div>}
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Lojas cadastradas</div>
-          {loading ? <Skeleton height={36} /> : <div className="kpi-value">{formatNumero(totalLojas)}</div>}
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Lojas ativas no período</div>
+          <div className="kpi-label">Total vendido</div>
           {loading ? <Skeleton height={36} /> : (
-            <div className="kpi-value">
-              {formatNumero(redes.reduce((acc, r) => acc + r.lojas_ativas, 0))}
-            </div>
+            <div className="kpi-value">{formatMoeda(kpis?.total_vendas ?? 0)}</div>
+          )}
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Redes ativas</div>
+          {loading ? <Skeleton height={36} /> : (
+            <div className="kpi-value">{formatNumero(kpis?.redes_ativas ?? 0)}</div>
           )}
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Year over Year</div>
-          <div className="kpi-value" style={{ fontSize: 15, color: "var(--color-muted)" }}>
-            Sem dados de 2025 ainda
-          </div>
+          {loading ? (
+            <Skeleton height={36} />
+          ) : yoyDisponivel ? (
+            <div className="kpi-value">
+              <Variacao pct={kpis?.variacao_yoy_pct ?? null} />
+            </div>
+          ) : (
+            <div className="kpi-value" style={{ fontSize: 15, color: "var(--color-muted)" }}>
+              Sem dados de 2025 ainda
+            </div>
+          )}
         </div>
       </div>
+
+      {yoyDisponivel && mensal.length > 0 && (
+        <div className="panel" style={{ marginBottom: 24 }}>
+          <h2 className="panel-title">Vendas por mês — este ano vs. ano anterior</h2>
+          {loading ? (
+            <Skeleton height={260} />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={mensal}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="mes" stroke="var(--color-muted)" />
+                <YAxis stroke="var(--color-muted)" />
+                <Tooltip formatter={(v: number) => formatMoeda(Number(v))} contentStyle={TOOLTIP_STYLE} />
+                <Line type="monotone" dataKey="total_vendas" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Este ano" />
+                <Line type="monotone" dataKey="total_ano_anterior" stroke="#5c6370" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Ano anterior" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
 
       <div className="panel" style={{ marginBottom: 24 }}>
         <h2 className="panel-title">Ranking de redes (top 15 por faturamento)</h2>
@@ -100,17 +127,8 @@ export function RedesDashboard() {
             <BarChart data={top15} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis type="number" stroke="var(--color-muted)" />
-              <YAxis
-                type="category"
-                dataKey="Rede"
-                stroke="var(--color-muted)"
-                width={200}
-                tick={{ fontSize: 11 }}
-              />
-              <Tooltip
-                formatter={(v: number) => formatMoeda(Number(v))}
-                contentStyle={TOOLTIP_STYLE}
-              />
+              <YAxis type="category" dataKey="rede" stroke="var(--color-muted)" width={200} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => formatMoeda(Number(v))} contentStyle={TOOLTIP_STYLE} />
               <Bar dataKey="total_vendas" fill="#8b5cf6" name="Total vendido" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -118,7 +136,7 @@ export function RedesDashboard() {
       </div>
 
       <div className="panel">
-        <h2 className="panel-title">Todas as redes ({redes.length})</h2>
+        <h2 className="panel-title">Todas as redes ({ranking.length})</h2>
         {loading ? (
           <Skeleton height={300} />
         ) : (
@@ -130,20 +148,22 @@ export function RedesDashboard() {
                   <th>Lojas cadastradas</th>
                   <th>Lojas ativas</th>
                   <th>Pedidos</th>
+                  <th>Ticket médio</th>
                   <th>Total vendido</th>
                   <th>YoY</th>
                 </tr>
               </thead>
               <tbody>
-                {redes.map((r) => (
-                  <tr key={r.Rede}>
-                    <td>{r.Rede}</td>
-                    <td>{r.qtd_lojas}</td>
+                {ranking.map((r) => (
+                  <tr key={r.rede}>
+                    <td>{r.rede}</td>
+                    <td>{r.lojas_cadastradas}</td>
                     <td>{r.lojas_ativas}</td>
-                    <td>{r.total_pedidos}</td>
+                    <td>{r.pedidos}</td>
+                    <td>{r.ticket_medio ? formatMoeda(r.ticket_medio) : "—"}</td>
                     <td>{formatMoeda(r.total_vendas)}</td>
-                    <td style={{ color: "var(--color-muted)" }}>
-                      {r.yoy_pct == null ? "—" : `${r.yoy_pct}%`}
+                    <td>
+                      <Variacao pct={r.variacao_yoy_pct} />
                     </td>
                   </tr>
                 ))}
