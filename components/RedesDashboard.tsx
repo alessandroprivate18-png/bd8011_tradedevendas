@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -11,9 +12,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useRedes } from "@/lib/hooks/useRedes";
+import type { LojaRede } from "@/lib/hooks/useRedes";
 
 const TOOLTIP_STYLE = {
   background: "var(--color-surface)",
@@ -32,8 +35,93 @@ function Variacao({ pct }: { pct: number | null }) {
   );
 }
 
+function LinhaRede({
+  rede,
+  carregarLojas,
+}: {
+  rede: { rede: string; lojas_cadastradas: number; lojas_ativas: number; pedidos: number; ticket_medio: number | null; total_vendas: number; variacao_yoy_pct: number | null };
+  carregarLojas: (rede: string) => Promise<LojaRede[]>;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [lojas, setLojas] = useState<LojaRede[] | null>(null);
+  const [carregandoLojas, setCarregandoLojas] = useState(false);
+
+  async function alternar() {
+    const proximo = !aberto;
+    setAberto(proximo);
+    if (proximo && lojas === null) {
+      setCarregandoLojas(true);
+      try {
+        const dados = await carregarLojas(rede.rede);
+        setLojas(dados);
+      } finally {
+        setCarregandoLojas(false);
+      }
+    }
+  }
+
+  return (
+    <>
+      <tr onClick={alternar} style={{ cursor: "pointer" }}>
+        <td style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {aberto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {rede.rede}
+        </td>
+        <td>{rede.lojas_cadastradas}</td>
+        <td>{rede.lojas_ativas}</td>
+        <td>{rede.pedidos}</td>
+        <td>{rede.ticket_medio ? formatMoeda(rede.ticket_medio) : "—"}</td>
+        <td>{formatMoeda(rede.total_vendas)}</td>
+        <td>
+          <Variacao pct={rede.variacao_yoy_pct} />
+        </td>
+      </tr>
+      {aberto && (
+        <tr>
+          <td colSpan={7} style={{ padding: 0, background: "var(--color-bg)" }}>
+            {carregandoLojas ? (
+              <div style={{ padding: 16 }}>
+                <Skeleton height={80} />
+              </div>
+            ) : (
+              <table className="data-table" style={{ width: "100%", margin: 0 }}>
+                <thead>
+                  <tr>
+                    <th style={{ paddingLeft: 32 }}>Cliente / Loja</th>
+                    <th>CPF/CNPJ</th>
+                    <th>Pedidos</th>
+                    <th>Ticket médio</th>
+                    <th>Total vendido</th>
+                    <th>YoY</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(lojas ?? []).map((l) => (
+                    <tr key={l.cpf_cnpj}>
+                      <td style={{ paddingLeft: 32 }}>
+                        {l.nome_loja ? `${l.nome_loja} — ${l.cliente}` : l.cliente}
+                      </td>
+                      <td>{l.cpf_cnpj}</td>
+                      <td>{l.pedidos}</td>
+                      <td>{l.ticket_medio ? formatMoeda(l.ticket_medio) : "—"}</td>
+                      <td>{formatMoeda(l.total_vendas)}</td>
+                      <td>
+                        <Variacao pct={l.variacao_yoy_pct} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export function RedesDashboard() {
-  const { kpis, ranking, mensal, yoyDisponivel, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim } =
+  const { kpis, ranking, mensal, yoyDisponivel, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim, carregarLojas } =
     useRedes();
 
   const top15 = ranking.slice(0, 15);
@@ -155,17 +243,7 @@ export function RedesDashboard() {
               </thead>
               <tbody>
                 {ranking.map((r) => (
-                  <tr key={r.rede}>
-                    <td>{r.rede}</td>
-                    <td>{r.lojas_cadastradas}</td>
-                    <td>{r.lojas_ativas}</td>
-                    <td>{r.pedidos}</td>
-                    <td>{r.ticket_medio ? formatMoeda(r.ticket_medio) : "—"}</td>
-                    <td>{formatMoeda(r.total_vendas)}</td>
-                    <td>
-                      <Variacao pct={r.variacao_yoy_pct} />
-                    </td>
-                  </tr>
+                  <LinhaRede key={r.rede} rede={r} carregarLojas={carregarLojas} />
                 ))}
               </tbody>
             </table>
