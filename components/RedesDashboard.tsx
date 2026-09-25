@@ -87,9 +87,11 @@ function LinhaRede({
               <table className="data-table" style={{ width: "100%", margin: 0 }}>
                 <thead>
                   <tr>
-                    <th style={{ paddingLeft: 32 }}>Cliente / Loja</th>
-                    <th>CPF/CNPJ</th>
+                    <th style={{ paddingLeft: 32 }}>Cliente</th>
+                    <th>Cidade/Bairro</th>
                     <th>Pedidos</th>
+                    <th>Volume</th>
+                    <th>Qt. SKUs</th>
                     <th>Ticket médio</th>
                     <th>Total vendido</th>
                     <th>YoY</th>
@@ -99,10 +101,14 @@ function LinhaRede({
                   {(lojas ?? []).map((l) => (
                     <tr key={l.cpf_cnpj}>
                       <td style={{ paddingLeft: 32 }}>
-                        {l.nome_loja ? `${l.nome_loja} — ${l.cliente}` : l.cliente}
+                        {l.cpf_cnpj} - ({l.codigo_cliente}) - {l.cliente}
                       </td>
-                      <td>{l.cpf_cnpj}</td>
+                      <td>
+                        {[l.cidade, l.bairro].filter(Boolean).join(" / ") || "—"}
+                      </td>
                       <td>{l.pedidos}</td>
+                      <td>{formatNumero(l.volume)}</td>
+                      <td>{l.qt_skus}</td>
                       <td>{l.ticket_medio ? formatMoeda(l.ticket_medio) : "—"}</td>
                       <td>{formatMoeda(l.total_vendas)}</td>
                       <td>
