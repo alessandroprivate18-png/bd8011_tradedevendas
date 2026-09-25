@@ -16,6 +16,7 @@ const FILTRO_INICIAL: FiltroAvancadoValor = {
   anos: [2025, 2026],
   meses: [],
   codFabricantes: [],
+  tipo: "1",
 };
 
 export function useRedesFabricanteMatriz(rede: string) {
@@ -37,6 +38,7 @@ export function useRedesFabricanteMatriz(rede: string) {
       p_anos: filtro.anos,
       p_meses: filtro.meses.length > 0 ? filtro.meses : null,
       p_cod_fabricantes: filtro.codFabricantes,
+      p_tipo: filtro.tipo ? Number(filtro.tipo) : 1,
     });
 
     if (error) {

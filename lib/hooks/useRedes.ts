@@ -29,17 +29,16 @@ export type LojaRede = {
   volume: number;
   qt_skus: number;
   ticket_medio: number | null;
-  total_ano_anterior: number | null;
-  variacao_yoy_pct: number | null;
 };
 
 export const FILTRO_REDES_PADRAO: FiltroAvancadoValor = {
   anos: [2026],
   meses: [],
   codFabricantes: [],
+  tipo: "1",
 };
 
-// Ranking + KPIs, dirigido pelo filtro avancado (Ano/Mes/Fabricante).
+// Ranking + KPIs, dirigido pelo filtro avancado (Tipo/Ano/Mes/Fabricante).
 // Cada tela que usa esse hook tem seu proprio estado de filtro, independente.
 export function useRedesRanking(filtroInicial: FiltroAvancadoValor = FILTRO_REDES_PADRAO) {
   const [filtro, setFiltro] = useState<FiltroAvancadoValor>(filtroInicial);
@@ -56,6 +55,7 @@ export function useRedesRanking(filtroInicial: FiltroAvancadoValor = FILTRO_REDE
       p_anos: filtro.anos.length > 0 ? filtro.anos : null,
       p_meses: filtro.meses.length > 0 ? filtro.meses : null,
       p_cod_fabricantes: filtro.codFabricantes.length > 0 ? filtro.codFabricantes : null,
+      p_tipo: filtro.tipo ? Number(filtro.tipo) : 1,
     });
 
     if (error) {
@@ -76,17 +76,17 @@ export function useRedesRanking(filtroInicial: FiltroAvancadoValor = FILTRO_REDE
   return { filtro, setFiltro, kpis, ranking, loading, erro };
 }
 
-// Drill-down: lojas (CNPJs) de uma rede especifica, sob demanda (usado ao
-// expandir uma linha da tabela). Usa o mesmo filtro de data simples de antes,
-// ja que essa parte nao foi pedida para mudar.
+// Drill-down: lojas (CNPJs) de uma rede especifica, sob demanda (ao expandir
+// uma linha). Recebe o MESMO filtro do painel pai, para os totais baterem.
 export function useLojasDeRede() {
   const carregarLojas = useCallback(
-    async (rede: string): Promise<LojaRede[]> => {
+    async (rede: string, filtro: FiltroAvancadoValor): Promise<LojaRede[]> => {
       const { data, error } = await supabase.rpc("redes_lojas_query", {
         p_rede: rede,
-        p_tipo: 1,
-        p_data_inicio: null,
-        p_data_fim: null,
+        p_anos: filtro.anos.length > 0 ? filtro.anos : null,
+        p_meses: filtro.meses.length > 0 ? filtro.meses : null,
+        p_cod_fabricantes: filtro.codFabricantes.length > 0 ? filtro.codFabricantes : null,
+        p_tipo: filtro.tipo ? Number(filtro.tipo) : 1,
       });
       if (error) throw new Error(error.message);
       return (data as LojaRede[]) ?? [];
