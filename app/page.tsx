@@ -317,6 +317,8 @@ function AbaProdutos() {
 }
 
 function AbaRedes() {
+  const { filterOptions } = useFilterOptions();
+
   return (
     <>
       <div style={{ marginBottom: 24 }}>
@@ -325,7 +327,7 @@ function AbaRedes() {
           Ranking de redes, lojas e comparativo Year over Year
         </p>
       </div>
-      <RedesDashboard />
+      <RedesDashboard filterOptions={filterOptions} />
     </>
   );
 }
