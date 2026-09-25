@@ -245,6 +245,8 @@ function AbaGerencial() {
 // ---------- Aba "Roteiro" ----------
 
 function AbaRoteiro() {
+  const { filterOptions } = useFilterOptions();
+
   return (
     <>
       <div style={{ marginBottom: 24 }}>
@@ -253,7 +255,7 @@ function AbaRoteiro() {
           Roteiro do vendedor para o dia
         </p>
       </div>
-      <RoteiroVendedorPanel />
+      <RoteiroVendedorPanel filterOptions={filterOptions} />
     </>
   );
 }
