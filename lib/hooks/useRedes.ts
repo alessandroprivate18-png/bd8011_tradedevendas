@@ -28,6 +28,17 @@ export type KpisRedes = {
   redes_ativas: number;
 };
 
+export type LojaRede = {
+  cliente: string;
+  cpf_cnpj: string;
+  nome_loja: string | null;
+  total_vendas: number;
+  pedidos: number;
+  ticket_medio: number | null;
+  total_ano_anterior: number | null;
+  variacao_yoy_pct: number | null;
+};
+
 export function useRedes() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -65,6 +76,20 @@ export function useRedes() {
     carregar();
   }, [carregar]);
 
+  const carregarLojas = useCallback(
+    async (rede: string): Promise<LojaRede[]> => {
+      const { data, error } = await supabase.rpc("redes_lojas_query", {
+        p_rede: rede,
+        p_tipo: 1,
+        p_data_inicio: dataInicio || null,
+        p_data_fim: dataFim || null,
+      });
+      if (error) throw new Error(error.message);
+      return (data as LojaRede[]) ?? [];
+    },
+    [dataInicio, dataFim]
+  );
+
   return {
     kpis,
     ranking,
@@ -76,5 +101,6 @@ export function useRedes() {
     setDataInicio,
     dataFim,
     setDataFim,
+    carregarLojas,
   };
 }
