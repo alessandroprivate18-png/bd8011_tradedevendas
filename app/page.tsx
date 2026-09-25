@@ -11,6 +11,7 @@ import { PerformanceDiariaPanel } from "@/components/PerformanceDiariaPanel";
 import { CoberturaPanel } from "@/components/CoberturaPanel";
 import { GerencialPanel } from "@/components/GerencialPanel";
 import { RoteiroVendedorPanel } from "@/components/RoteiroVendedorPanel";
+import { ProdutosCurvaABC } from "@/components/ProdutosCurvaABC";
 import { TopVendedores } from "@/components/TopVendedores";
 import { TopProdutos } from "@/components/TopProdutos";
 import { TopClientes } from "@/components/TopClientes";
@@ -294,6 +295,24 @@ function AbaClientes() {
   );
 }
 
+// ---------- Aba "Produtos" (curva ABC) ----------
+
+function AbaProdutos() {
+  const { filterOptions } = useFilterOptions();
+
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Produtos</h1>
+        <p style={{ color: "var(--color-muted)" }}>
+          Curva ABC — quais produtos concentram o faturamento
+        </p>
+      </div>
+      <ProdutosCurvaABC filterOptions={filterOptions} />
+    </>
+  );
+}
+
 function EmBreve({ titulo }: { titulo: string }) {
   return (
     <div className="panel" style={{ textAlign: "center", padding: "48px 24px" }}>
@@ -318,7 +337,7 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
       {activeTab === "visao-geral" && <VisaoGeral />}
       {activeTab === "vendas" && <AbaVendas />}
       {activeTab === "clientes" && <AbaClientes />}
-      {activeTab === "produtos" && <EmBreve titulo="Produtos (Curva ABC) — próxima etapa" />}
+      {activeTab === "produtos" && <AbaProdutos />}
       {activeTab === "gerencial" && <AbaGerencial />}
       {activeTab === "roteiro" && <AbaRoteiro />}
       {activeTab === "redes" && <EmBreve titulo="Redes (dim_bd_Redes) — próxima etapa" />}
