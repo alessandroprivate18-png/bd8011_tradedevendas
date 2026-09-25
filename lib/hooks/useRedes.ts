@@ -3,21 +3,38 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-export type Rede = {
-  Rede: string;
-  qtd_lojas: number;
+export type RedeRanking = {
+  rede: string;
+  lojas_cadastradas: number;
   lojas_ativas: number;
   total_vendas: number;
-  total_pedidos: number;
-  yoy_pct: number | null;
+  pedidos: number;
+  ticket_medio: number | null;
+  total_ano_anterior: number | null;
+  variacao_yoy_pct: number | null;
+};
+
+export type MesRedes = {
+  mes: string;
+  total_vendas: number;
+  total_ano_anterior: number | null;
+  variacao_yoy_pct: number | null;
+};
+
+export type KpisRedes = {
+  total_vendas: number;
+  total_ano_anterior: number | null;
+  variacao_yoy_pct: number | null;
+  redes_ativas: number;
 };
 
 export function useRedes() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [redes, setRedes] = useState<Rede[]>([]);
-  const [totalRedes, setTotalRedes] = useState(0);
-  const [totalLojas, setTotalLojas] = useState(0);
+  const [kpis, setKpis] = useState<KpisRedes | null>(null);
+  const [ranking, setRanking] = useState<RedeRanking[]>([]);
+  const [mensal, setMensal] = useState<MesRedes[]>([]);
+  const [yoyDisponivel, setYoyDisponivel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -26,18 +43,20 @@ export function useRedes() {
     setErro(null);
 
     const { data, error } = await supabase.rpc("redes_query", {
+      p_tipo: 1,
       p_data_inicio: dataInicio || null,
       p_data_fim: dataFim || null,
     });
 
     if (error) {
       setErro(error.message);
-      setRedes([]);
+      setRanking([]);
     } else if (data) {
       const d = data as any;
-      setRedes(d.redes ?? []);
-      setTotalRedes(d.total_redes ?? 0);
-      setTotalLojas(d.total_lojas ?? 0);
+      setKpis(d.kpis ?? null);
+      setRanking(d.ranking ?? []);
+      setMensal(d.mensal ?? []);
+      setYoyDisponivel(Boolean(d.yoy_disponivel));
     }
     setLoading(false);
   }, [dataInicio, dataFim]);
@@ -47,9 +66,10 @@ export function useRedes() {
   }, [carregar]);
 
   return {
-    redes,
-    totalRedes,
-    totalLojas,
+    kpis,
+    ranking,
+    mensal,
+    yoyDisponivel,
     loading,
     erro,
     dataInicio,
