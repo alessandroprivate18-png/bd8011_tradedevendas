@@ -17,6 +17,8 @@ import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useRedes } from "@/lib/hooks/useRedes";
 import type { LojaRede } from "@/lib/hooks/useRedes";
+import { RedesFabricanteMatriz } from "@/components/RedesFabricanteMatriz";
+import type { FilterOptions } from "@/lib/types";
 
 const TOOLTIP_STYLE = {
   background: "var(--color-surface)",
@@ -126,7 +128,7 @@ function LinhaRede({
   );
 }
 
-export function RedesDashboard() {
+export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions }) {
   const { kpis, ranking, mensal, yoyDisponivel, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim, carregarLojas } =
     useRedes();
 
@@ -228,6 +230,8 @@ export function RedesDashboard() {
           </ResponsiveContainer>
         )}
       </div>
+
+      <RedesFabricanteMatriz ranking={ranking} filterOptions={filterOptions} />
 
       <div className="panel">
         <h2 className="panel-title">Todas as redes ({ranking.length})</h2>
