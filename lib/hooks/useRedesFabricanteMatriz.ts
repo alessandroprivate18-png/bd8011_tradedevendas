@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import type { FiltroAvancadoValor } from "@/components/FiltroAvancado";
 
 export type CelulaMatriz = {
   codigo_fabricante: number;
@@ -11,19 +12,20 @@ export type CelulaMatriz = {
   total_vendas: number;
 };
 
-const ANOS_DISPONIVEIS = [2024, 2025, 2026, 2027];
-export { ANOS_DISPONIVEIS };
+const FILTRO_INICIAL: FiltroAvancadoValor = {
+  anos: [2025, 2026],
+  meses: [],
+  codFabricantes: [],
+};
 
 export function useRedesFabricanteMatriz(rede: string) {
-  const [anos, setAnos] = useState<number[]>([2025, 2026]);
-  const [meses, setMeses] = useState<number[]>([]);
-  const [codFabricantes, setCodFabricantes] = useState<number[]>([]);
+  const [filtro, setFiltro] = useState<FiltroAvancadoValor>(FILTRO_INICIAL);
   const [dados, setDados] = useState<CelulaMatriz[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    if (!rede || codFabricantes.length === 0 || anos.length === 0) {
+    if (!rede || filtro.codFabricantes.length === 0 || filtro.anos.length === 0) {
       setDados([]);
       return;
     }
@@ -32,9 +34,9 @@ export function useRedesFabricanteMatriz(rede: string) {
 
     const { data, error } = await supabase.rpc("redes_fabricante_matriz_query", {
       p_rede: rede,
-      p_anos: anos,
-      p_meses: meses.length > 0 ? meses : null,
-      p_cod_fabricantes: codFabricantes,
+      p_anos: filtro.anos,
+      p_meses: filtro.meses.length > 0 ? filtro.meses : null,
+      p_cod_fabricantes: filtro.codFabricantes,
     });
 
     if (error) {
@@ -44,21 +46,11 @@ export function useRedesFabricanteMatriz(rede: string) {
       setDados((data as CelulaMatriz[]) ?? []);
     }
     setLoading(false);
-  }, [rede, anos, meses, codFabricantes]);
+  }, [rede, filtro]);
 
   useEffect(() => {
     carregar();
   }, [carregar]);
 
-  return {
-    anos,
-    setAnos,
-    meses,
-    setMeses,
-    codFabricantes,
-    setCodFabricantes,
-    dados,
-    loading,
-    erro,
-  };
+  return { filtro, setFiltro, dados, loading, erro };
 }
