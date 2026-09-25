@@ -17,6 +17,7 @@ import { useRedesRanking, useLojasDeRede, FILTRO_REDES_PADRAO } from "@/lib/hook
 import type { LojaRede, RedeRanking } from "@/lib/hooks/useRedes";
 import { RedesFabricanteMatriz } from "@/components/RedesFabricanteMatriz";
 import { FiltroAvancado } from "@/components/FiltroAvancado";
+import type { FiltroAvancadoValor } from "@/components/FiltroAvancado";
 import type { FilterOptions } from "@/lib/types";
 
 const TOOLTIP_STYLE = {
@@ -26,22 +27,14 @@ const TOOLTIP_STYLE = {
   borderRadius: "8px",
 };
 
-function Variacao({ pct }: { pct: number | null }) {
-  if (pct == null) return <span style={{ color: "var(--color-muted)" }}>—</span>;
-  return (
-    <span style={{ color: pct >= 0 ? "#34d399" : "#ff9aa6" }}>
-      {pct > 0 ? "+" : ""}
-      {pct}%
-    </span>
-  );
-}
-
 function LinhaRede({
   rede,
+  filtro,
   carregarLojas,
 }: {
   rede: RedeRanking;
-  carregarLojas: (rede: string) => Promise<LojaRede[]>;
+  filtro: FiltroAvancadoValor;
+  carregarLojas: (rede: string, filtro: FiltroAvancadoValor) => Promise<LojaRede[]>;
 }) {
   const [aberto, setAberto] = useState(false);
   const [lojas, setLojas] = useState<LojaRede[] | null>(null);
@@ -50,10 +43,12 @@ function LinhaRede({
   async function alternar() {
     const proximo = !aberto;
     setAberto(proximo);
-    if (proximo && lojas === null) {
+    if (proximo) {
+      // Sempre recarrega ao abrir: o filtro do painel pai pode ter mudado
+      // desde a ultima vez que essa linha foi expandida.
       setCarregandoLojas(true);
       try {
-        const dados = await carregarLojas(rede.rede);
+        const dados = await carregarLojas(rede.rede, filtro);
         setLojas(dados);
       } finally {
         setCarregandoLojas(false);
@@ -92,7 +87,6 @@ function LinhaRede({
                     <th>Qt. SKUs</th>
                     <th>Ticket médio</th>
                     <th>Total vendido</th>
-                    <th>YoY</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -109,9 +103,6 @@ function LinhaRede({
                       <td>{l.qt_skus}</td>
                       <td>{l.ticket_medio ? formatMoeda(l.ticket_medio) : "—"}</td>
                       <td>{formatMoeda(l.total_vendas)}</td>
-                      <td>
-                        <Variacao pct={l.variacao_yoy_pct} />
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -225,7 +216,12 @@ export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions
               </thead>
               <tbody>
                 {rankingTabela.map((r) => (
-                  <LinhaRede key={r.rede} rede={r} carregarLojas={carregarLojas} />
+                  <LinhaRede
+                    key={r.rede}
+                    rede={r}
+                    filtro={filtroTabela}
+                    carregarLojas={carregarLojas}
+                  />
                 ))}
               </tbody>
             </table>

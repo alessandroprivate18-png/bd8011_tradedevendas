@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
+import { TIPOS_VENDA } from "@/lib/types";
 import type { FabricanteCodigo } from "@/lib/types";
 
 export const ANOS_DISPONIVEIS = [2024, 2025, 2026, 2027];
@@ -15,6 +16,7 @@ export type FiltroAvancadoValor = {
   anos: number[];
   meses: number[];
   codFabricantes: number[];
+  tipo: string;
 };
 
 function CheckboxDropdown({
@@ -125,6 +127,23 @@ interface FiltroAvancadoProps {
 export function FiltroAvancado({ fabricantesOptions, valor, onChange }: FiltroAvancadoProps) {
   return (
     <>
+      <div className="filter-field">
+        <label className="filter-label" style={{ color: "var(--color-accent)" }}>
+          Tipo de Venda
+        </label>
+        <select
+          className="filter-control"
+          value={valor.tipo}
+          onChange={(e) => onChange({ ...valor, tipo: e.target.value })}
+          style={{ minWidth: 130 }}
+        >
+          {TIPOS_VENDA.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <CheckboxDropdown
         label="Ano"
         opcoes={ANOS_DISPONIVEIS}
