@@ -134,7 +134,10 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
           <Skeleton height={320} />
         ) : (
           <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={top30}>
+            <ComposedChart
+              key={`${dataInicio}-${dataFim}-${codFabricante}`}
+              data={top30}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="Produto" hide />
               <YAxis yAxisId="left" stroke="var(--color-muted)" />
@@ -146,7 +149,14 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
                 labelFormatter={(label: string) => label}
                 contentStyle={TOOLTIP_STYLE}
               />
-              <Bar yAxisId="left" dataKey="total_vendas" fill="#2a78d6" name="Faturamento" radius={[4, 4, 0, 0]} />
+              <Bar
+                yAxisId="left"
+                dataKey="total_vendas"
+                fill="#2a78d6"
+                name="Faturamento"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              />
               <Line
                 yAxisId="right"
                 type="monotone"
@@ -155,6 +165,7 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
                 strokeWidth={2}
                 dot={false}
                 name="% acumulado"
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>
