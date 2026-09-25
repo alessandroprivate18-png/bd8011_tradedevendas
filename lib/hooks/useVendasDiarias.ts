@@ -26,7 +26,7 @@ export type VendasDiariasFiltros = {
   dataFim: string;
   supervisor: string;
   vendedorBusca: string;
-  codFabricante: string;
+  codFabricantes: number[];
 };
 
 const FILTROS_INICIAIS: VendasDiariasFiltros = {
@@ -34,7 +34,7 @@ const FILTROS_INICIAIS: VendasDiariasFiltros = {
   dataFim: "",
   supervisor: "",
   vendedorBusca: "",
-  codFabricante: "",
+  codFabricantes: [],
 };
 
 export function useVendasDiarias() {
@@ -56,9 +56,8 @@ export function useVendasDiarias() {
       p_data_fim: filtrosAplicados.dataFim || null,
       p_supervisor: filtrosAplicados.supervisor || null,
       p_vendedor: filtrosAplicados.vendedorBusca || null,
-      p_cod_fabricante: filtrosAplicados.codFabricante
-        ? Number(filtrosAplicados.codFabricante)
-        : null,
+      p_cod_fabricantes:
+        filtrosAplicados.codFabricantes.length > 0 ? filtrosAplicados.codFabricantes : null,
     });
 
     if (error) {

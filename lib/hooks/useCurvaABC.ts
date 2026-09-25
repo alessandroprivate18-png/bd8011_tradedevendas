@@ -22,7 +22,7 @@ export type ResumoClasse = {
 export function useCurvaABC() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [codFabricante, setCodFabricante] = useState("");
+  const [codFabricantes, setCodFabricantes] = useState<number[]>([]);
   const [produtos, setProdutos] = useState<ProdutoABC[]>([]);
   const [resumo, setResumo] = useState<ResumoClasse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,7 @@ export function useCurvaABC() {
     const { data, error } = await supabase.rpc("curva_abc_produtos_query", {
       p_data_inicio: dataInicio || null,
       p_data_fim: dataFim || null,
-      p_cod_fabricante: codFabricante ? Number(codFabricante) : null,
+      p_cod_fabricantes: codFabricantes.length > 0 ? codFabricantes : null,
     });
 
     if (error) {
@@ -48,7 +48,7 @@ export function useCurvaABC() {
       setResumo(d.resumo ?? []);
     }
     setLoading(false);
-  }, [dataInicio, dataFim, codFabricante]);
+  }, [dataInicio, dataFim, codFabricantes]);
 
   useEffect(() => {
     carregar();
@@ -63,7 +63,7 @@ export function useCurvaABC() {
     setDataInicio,
     dataFim,
     setDataFim,
-    codFabricante,
-    setCodFabricante,
+    codFabricantes,
+    setCodFabricantes,
   };
 }

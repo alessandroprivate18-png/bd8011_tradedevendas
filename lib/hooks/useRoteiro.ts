@@ -12,6 +12,7 @@ export type ClienteRoteiro = {
   valor_medio: number | null;
   proxima_visita: string;
   status: "Positivado" | "Pendente";
+  status_fabricante: "Positivado" | "Pendente" | null;
 };
 
 function hoje() {
@@ -22,6 +23,7 @@ export function useRoteiro() {
   const [dia, setDia] = useState(hoje());
   const [busca, setBusca] = useState("");
   const [cidade, setCidade] = useState("");
+  const [codFabricantes, setCodFabricantes] = useState<number[]>([]);
   const [clientes, setClientes] = useState<ClienteRoteiro[]>([]);
   const [cidades, setCidades] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,7 @@ export function useRoteiro() {
       p_data: dia,
       p_cidade: cidade || null,
       p_busca: busca || null,
+      p_cod_fabricantes: codFabricantes.length > 0 ? codFabricantes : null,
     });
 
     if (error) {
@@ -50,11 +53,24 @@ export function useRoteiro() {
       setClientes((data as ClienteRoteiro[]) ?? []);
     }
     setLoading(false);
-  }, [dia, cidade, busca]);
+  }, [dia, cidade, busca, codFabricantes]);
 
   useEffect(() => {
     carregar();
   }, [carregar]);
 
-  return { dia, setDia, busca, setBusca, cidade, setCidade, cidades, clientes, loading, erro };
+  return {
+    dia,
+    setDia,
+    busca,
+    setBusca,
+    cidade,
+    setCidade,
+    cidades,
+    codFabricantes,
+    setCodFabricantes,
+    clientes,
+    loading,
+    erro,
+  };
 }

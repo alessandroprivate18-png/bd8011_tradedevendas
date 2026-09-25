@@ -10,7 +10,7 @@ const FILTROS_INICIAIS: Filtros = {
   supervisor: "",
   ramo: "",
   fabricante: "",
-  codFabricante: "",
+  codFabricantes: [],
   clienteBusca: "",
   tipoVenda: "1", // Venda e o padrao ao abrir o dashboard
   codVendedor: "",
@@ -61,9 +61,8 @@ export function useDashboard() {
         p_supervisor: filtrosAplicados.supervisor || null,
         p_ramo: filtrosAplicados.ramo || null,
         p_fabricante: filtrosAplicados.fabricante || null,
-        p_cod_fabricante: filtrosAplicados.codFabricante
-          ? Number(filtrosAplicados.codFabricante)
-          : null,
+        p_cod_fabricantes:
+          filtrosAplicados.codFabricantes.length > 0 ? filtrosAplicados.codFabricantes : null,
         p_cliente: filtrosAplicados.clienteBusca || null,
       });
 
@@ -155,7 +154,7 @@ export function useDashboard() {
           filtros.supervisor ||
           filtros.ramo ||
           filtros.fabricante ||
-          filtros.codFabricante ||
+          filtros.codFabricantes.length > 0 ||
           filtros.tipoVenda !== "1" ||
           filtros.codVendedor ||
           filtros.clienteBusca
@@ -172,7 +171,7 @@ export function useDashboard() {
       "supervisor",
       "ramo",
       "fabricante",
-      "codFabricante",
+      "codFabricantes",
       "clienteBusca",
       "tipoVenda",
     ];
