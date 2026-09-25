@@ -1,119 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatMoeda } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
-import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
-import {
-  useRedesFabricanteMatriz,
-  ANOS_DISPONIVEIS,
-} from "@/lib/hooks/useRedesFabricanteMatriz";
+import { FiltroAvancado, NOMES_MESES } from "@/components/FiltroAvancado";
+import type { FiltroAvancadoValor } from "@/components/FiltroAvancado";
+import { useRedesFabricanteMatriz } from "@/lib/hooks/useRedesFabricanteMatriz";
 import type { FilterOptions } from "@/lib/types";
 import type { RedeRanking } from "@/lib/hooks/useRedes";
-
-const NOMES_MESES = [
-  "JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
-  "JUL", "AGO", "SET", "OUT", "NOV", "DEZ",
-];
-
-function CheckboxDropdown({
-  label,
-  opcoes,
-  selecionados,
-  onChange,
-  formatarLabel,
-}: {
-  label: string;
-  opcoes: number[];
-  selecionados: number[];
-  onChange: (valores: number[]) => void;
-  formatarLabel: (v: number) => string;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function aoClicarFora(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false);
-    }
-    document.addEventListener("mousedown", aoClicarFora);
-    return () => document.removeEventListener("mousedown", aoClicarFora);
-  }, []);
-
-  function alternar(v: number) {
-    onChange(
-      selecionados.includes(v) ? selecionados.filter((x) => x !== v) : [...selecionados, v]
-    );
-  }
-
-  const resumo =
-    selecionados.length === 0
-      ? "Nenhum"
-      : selecionados.length === opcoes.length
-      ? "Todos"
-      : selecionados.map(formatarLabel).join(", ");
-
-  return (
-    <div className="filter-field" ref={ref} style={{ position: "relative" }}>
-      <label className="filter-label">{label}</label>
-      <button
-        type="button"
-        className="filter-control"
-        onClick={() => setAberto((v) => !v)}
-        style={{
-          minWidth: 160,
-          textAlign: "left",
-          cursor: "pointer",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {resumo}
-      </button>
-      {aberto && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            zIndex: 50,
-            marginTop: 4,
-            width: 220,
-            maxHeight: 260,
-            overflowY: "auto",
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-            padding: 6,
-          }}
-        >
-          {opcoes.map((v) => (
-            <label
-              key={v}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 8px",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={selecionados.includes(v)}
-                onChange={() => alternar(v)}
-              />
-              {formatarLabel(v)}
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface RedesFabricanteMatrizProps {
   ranking: RedeRanking[];
@@ -122,24 +16,17 @@ interface RedesFabricanteMatrizProps {
 
 export function RedesFabricanteMatriz({ ranking, filterOptions }: RedesFabricanteMatrizProps) {
   const [rede, setRede] = useState("");
-  const {
-    anos,
-    setAnos,
-    meses,
-    setMeses,
-    codFabricantes,
-    setCodFabricantes,
-    dados,
-    loading,
-    erro,
-  } = useRedesFabricanteMatriz(rede);
+  const { filtro, setFiltro, dados, loading, erro } = useRedesFabricanteMatriz(rede);
 
   useEffect(() => {
     if (!rede && ranking.length > 0) setRede(ranking[0].rede);
   }, [ranking, rede]);
 
-  const mesesColuna = meses.length > 0 ? [...meses].sort((a, b) => a - b) : [1,2,3,4,5,6,7,8,9,10,11,12];
-  const anosOrdenados = [...anos].sort((a, b) => a - b);
+  const mesesColuna =
+    filtro.meses.length > 0
+      ? [...filtro.meses].sort((a, b) => a - b)
+      : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const anosOrdenados = [...filtro.anos].sort((a, b) => a - b);
 
   const porFabricante = useMemo(() => {
     const grupos = new Map<string, { total: Map<string, number> }>();
@@ -175,35 +62,16 @@ export function RedesFabricanteMatriz({ ranking, filterOptions }: RedesFabricant
           </select>
         </div>
 
-        <CheckboxDropdown
-          label="Ano"
-          opcoes={ANOS_DISPONIVEIS}
-          selecionados={anos}
-          onChange={setAnos}
-          formatarLabel={(v) => String(v)}
-        />
-
-        <CheckboxDropdown
-          label="Mês"
-          opcoes={[1,2,3,4,5,6,7,8,9,10,11,12]}
-          selecionados={meses}
-          onChange={setMeses}
-          formatarLabel={(v) => NOMES_MESES[v - 1]}
-        />
-
-        <FabricanteMultiSelect
-          options={filterOptions.fabricantes_codigo}
-          selecionados={codFabricantes}
-          onChange={setCodFabricantes}
-          label="Fabricante"
+        <FiltroAvancado
+          fabricantesOptions={filterOptions.fabricantes_codigo}
+          valor={filtro}
+          onChange={setFiltro}
         />
       </div>
 
-      {erro && (
-        <div style={{ color: "#ff9aa6", fontSize: 13, marginBottom: 16 }}>{erro}</div>
-      )}
+      {erro && <div style={{ color: "#ff9aa6", fontSize: 13, marginBottom: 16 }}>{erro}</div>}
 
-      {codFabricantes.length === 0 ? (
+      {filtro.codFabricantes.length === 0 ? (
         <p style={{ color: "var(--color-muted)" }}>
           Selecione ao menos um fabricante para montar a comparação.
         </p>

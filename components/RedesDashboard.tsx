@@ -4,8 +4,6 @@ import { useState } from "react";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,9 +13,10 @@ import {
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
-import { useRedes } from "@/lib/hooks/useRedes";
-import type { LojaRede } from "@/lib/hooks/useRedes";
+import { useRedesRanking, useLojasDeRede, FILTRO_REDES_PADRAO } from "@/lib/hooks/useRedes";
+import type { LojaRede, RedeRanking } from "@/lib/hooks/useRedes";
 import { RedesFabricanteMatriz } from "@/components/RedesFabricanteMatriz";
+import { FiltroAvancado } from "@/components/FiltroAvancado";
 import type { FilterOptions } from "@/lib/types";
 
 const TOOLTIP_STYLE = {
@@ -41,7 +40,7 @@ function LinhaRede({
   rede,
   carregarLojas,
 }: {
-  rede: { rede: string; lojas_cadastradas: number; lojas_ativas: number; pedidos: number; ticket_medio: number | null; total_vendas: number; variacao_yoy_pct: number | null };
+  rede: RedeRanking;
   carregarLojas: (rede: string) => Promise<LojaRede[]>;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -74,13 +73,10 @@ function LinhaRede({
         <td>{rede.pedidos}</td>
         <td>{rede.ticket_medio ? formatMoeda(rede.ticket_medio) : "—"}</td>
         <td>{formatMoeda(rede.total_vendas)}</td>
-        <td>
-          <Variacao pct={rede.variacao_yoy_pct} />
-        </td>
       </tr>
       {aberto && (
         <tr>
-          <td colSpan={7} style={{ padding: 0, background: "var(--color-bg)" }}>
+          <td colSpan={6} style={{ padding: 0, background: "var(--color-bg)" }}>
             {carregandoLojas ? (
               <div style={{ padding: 16 }}>
                 <Skeleton height={80} />
@@ -129,8 +125,19 @@ function LinhaRede({
 }
 
 export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions }) {
-  const { kpis, ranking, mensal, yoyDisponivel, loading, erro, dataInicio, setDataInicio, dataFim, setDataFim, carregarLojas } =
-    useRedes();
+  // Topo: KPIs + grafico de ranking — filtro avancado proprio
+  const { filtro, setFiltro, kpis, ranking, loading, erro } = useRedesRanking();
+
+  // Tabela "Todas as redes" — filtro avancado independente do topo
+  const {
+    filtro: filtroTabela,
+    setFiltro: setFiltroTabela,
+    ranking: rankingTabela,
+    loading: loadingTabela,
+    erro: erroTabela,
+  } = useRedesRanking(FILTRO_REDES_PADRAO);
+
+  const { carregarLojas } = useLojasDeRede();
 
   const top15 = ranking.slice(0, 15);
 
@@ -138,24 +145,11 @@ export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions
     <>
       <div className="panel" style={{ marginBottom: 24 }}>
         <div className="filter-row">
-          <div className="filter-field">
-            <label className="filter-label">Data inicial</label>
-            <input
-              type="date"
-              className="filter-control"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-            />
-          </div>
-          <div className="filter-field">
-            <label className="filter-label">Data final</label>
-            <input
-              type="date"
-              className="filter-control"
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-            />
-          </div>
+          <FiltroAvancado
+            fabricantesOptions={filterOptions.fabricantes_codigo}
+            valor={filtro}
+            onChange={setFiltro}
+          />
         </div>
       </div>
 
@@ -178,41 +172,7 @@ export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions
             <div className="kpi-value">{formatNumero(kpis?.redes_ativas ?? 0)}</div>
           )}
         </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Year over Year</div>
-          {loading ? (
-            <Skeleton height={36} />
-          ) : yoyDisponivel ? (
-            <div className="kpi-value">
-              <Variacao pct={kpis?.variacao_yoy_pct ?? null} />
-            </div>
-          ) : (
-            <div className="kpi-value" style={{ fontSize: 15, color: "var(--color-muted)" }}>
-              Sem dados de 2025 ainda
-            </div>
-          )}
-        </div>
       </div>
-
-      {yoyDisponivel && mensal.length > 0 && (
-        <div className="panel" style={{ marginBottom: 24 }}>
-          <h2 className="panel-title">Vendas por mês — este ano vs. ano anterior</h2>
-          {loading ? (
-            <Skeleton height={260} />
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={mensal}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="mes" stroke="var(--color-muted)" />
-                <YAxis stroke="var(--color-muted)" />
-                <Tooltip formatter={(v: number) => formatMoeda(Number(v))} contentStyle={TOOLTIP_STYLE} />
-                <Line type="monotone" dataKey="total_vendas" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Este ano" />
-                <Line type="monotone" dataKey="total_ano_anterior" stroke="#5c6370" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Ano anterior" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      )}
 
       <div className="panel" style={{ marginBottom: 24 }}>
         <h2 className="panel-title">Ranking de redes (top 15 por faturamento)</h2>
@@ -233,9 +193,22 @@ export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions
 
       <RedesFabricanteMatriz ranking={ranking} filterOptions={filterOptions} />
 
-      <div className="panel">
-        <h2 className="panel-title">Todas as redes ({ranking.length})</h2>
-        {loading ? (
+      <div className="panel" style={{ marginTop: 24 }}>
+        <h2 className="panel-title">Todas as redes ({rankingTabela.length})</h2>
+
+        <div className="filter-row" style={{ marginBottom: 16 }}>
+          <FiltroAvancado
+            fabricantesOptions={filterOptions.fabricantes_codigo}
+            valor={filtroTabela}
+            onChange={setFiltroTabela}
+          />
+        </div>
+
+        {erroTabela && (
+          <div style={{ color: "#ff9aa6", fontSize: 13, marginBottom: 16 }}>{erroTabela}</div>
+        )}
+
+        {loadingTabela ? (
           <Skeleton height={300} />
         ) : (
           <div className="table-wrapper">
@@ -248,11 +221,10 @@ export function RedesDashboard({ filterOptions }: { filterOptions: FilterOptions
                   <th>Pedidos</th>
                   <th>Ticket médio</th>
                   <th>Total vendido</th>
-                  <th>YoY</th>
                 </tr>
               </thead>
               <tbody>
-                {ranking.map((r) => (
+                {rankingTabela.map((r) => (
                   <LinhaRede key={r.rede} rede={r} carregarLojas={carregarLojas} />
                 ))}
               </tbody>
