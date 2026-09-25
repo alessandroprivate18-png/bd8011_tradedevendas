@@ -12,6 +12,7 @@ import {
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useVendasDiarias } from "@/lib/hooks/useVendasDiarias";
+import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
 import type { FilterOptions } from "@/lib/types";
 
 const TOOLTIP_STYLE = {
@@ -91,21 +92,12 @@ export function VendasDiariasPanel({ filterOptions }: VendasDiariasPanelProps) {
               onKeyDown={(e) => e.key === "Enter" && buscar()}
             />
           </div>
-          <div className="filter-field">
-            <label className="filter-label">Cód. Fabricante</label>
-            <select
-              className="filter-control"
-              value={filtros.codFabricante}
-              onChange={(e) => set("codFabricante", e.target.value)}
-            >
-              <option value="">Todos</option>
-              {filterOptions.fabricantes_codigo.map((f) => (
-                <option key={f.codigo} value={f.codigo}>
-                  {f.codigo} - {f.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FabricanteMultiSelect
+            options={filterOptions.fabricantes_codigo}
+            selecionados={filtros.codFabricantes}
+            onChange={(codigos) => setFiltros({ ...filtros, codFabricantes: codigos })}
+            label="Cód. Fabricante"
+          />
           <button onClick={buscar} className="btn-clear">
             Pesquisar
           </button>

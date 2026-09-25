@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { TIPOS_VENDA } from "@/lib/types";
 import type { FilterOptions, Filtros } from "@/lib/types";
+import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
 
 interface FilterBarProps {
   options: FilterOptions;
@@ -140,22 +141,13 @@ export function FilterBar({
           </select>
         </div>
 
-        {/* Cód. Fabricante */}
-        <div className="filter-field">
-          <label className="filter-label">Cód. Fabricante</label>
-          <select
-            className="filter-control"
-            value={filtros.codFabricante}
-            onChange={(e) => set("codFabricante", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {options.fabricantes_codigo.map((f) => (
-              <option key={f.codigo} value={f.codigo}>
-                {f.codigo} - {f.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Cód. Fabricante (multi-selecao) */}
+        <FabricanteMultiSelect
+          options={options.fabricantes_codigo}
+          selecionados={filtros.codFabricantes}
+          onChange={(codigos) => onChange({ ...filtros, codFabricantes: codigos })}
+          label="Cód. Fabricante"
+        />
 
         {/* Buscar Cliente */}
         <div className="filter-field">

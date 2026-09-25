@@ -5,6 +5,8 @@ import { formatMoeda } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useRoteiro } from "@/lib/hooks/useRoteiro";
 import type { ClienteRoteiro } from "@/lib/hooks/useRoteiro";
+import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
+import type { FilterOptions } from "@/lib/types";
 
 function TagStatus({ status }: { status: ClienteRoteiro["status"] }) {
   const estilos: Record<string, React.CSSProperties> = {
@@ -29,10 +31,28 @@ function TagStatus({ status }: { status: ClienteRoteiro["status"] }) {
 
 type Ordenacao = "proxima_visita" | "cliente";
 
-export function RoteiroVendedorPanel() {
-  const { dia, setDia, busca, setBusca, cidade, setCidade, cidades, clientes, loading, erro } =
-    useRoteiro();
+interface RoteiroVendedorPanelProps {
+  filterOptions: FilterOptions;
+}
+
+export function RoteiroVendedorPanel({ filterOptions }: RoteiroVendedorPanelProps) {
+  const {
+    dia,
+    setDia,
+    busca,
+    setBusca,
+    cidade,
+    setCidade,
+    cidades,
+    codFabricantes,
+    setCodFabricantes,
+    clientes,
+    loading,
+    erro,
+  } = useRoteiro();
   const [ordenar, setOrdenar] = useState<Ordenacao>("proxima_visita");
+
+  const temFabricante = codFabricantes.length > 0;
 
   const clientesOrdenados = useMemo(() => {
     const copia = [...clientes];
@@ -85,6 +105,12 @@ export function RoteiroVendedorPanel() {
               style={{ minWidth: 200 }}
             />
           </div>
+          <FabricanteMultiSelect
+            options={filterOptions.fabricantes_codigo}
+            selecionados={codFabricantes}
+            onChange={setCodFabricantes}
+            label="Cód. Fabricante"
+          />
           <div className="filter-field">
             <label className="filter-label">Ordenar por</label>
             <select
@@ -97,6 +123,12 @@ export function RoteiroVendedorPanel() {
             </select>
           </div>
         </div>
+        {temFabricante && (
+          <p style={{ fontSize: 13, color: "var(--color-muted)", marginTop: 12, marginBottom: 0 }}>
+            A coluna "Status (fabricante)" mostra se houve pedido do(s) fabricante(s) selecionado(s)
+            especificamente nesse dia — pode ser diferente do status geral de positivação.
+          </p>
+        )}
       </div>
 
       {erro && (
@@ -130,6 +162,7 @@ export function RoteiroVendedorPanel() {
                   <th>Próxima visita</th>
                   <th>Valor médio</th>
                   <th>Status</th>
+                  {temFabricante && <th>Status (fabricante)</th>}
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +177,11 @@ export function RoteiroVendedorPanel() {
                     <td>
                       <TagStatus status={c.status} />
                     </td>
+                    {temFabricante && (
+                      <td>
+                        {c.status_fabricante ? <TagStatus status={c.status_fabricante} /> : "—"}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -154,3 +192,4 @@ export function RoteiroVendedorPanel() {
     </>
   );
 }
+

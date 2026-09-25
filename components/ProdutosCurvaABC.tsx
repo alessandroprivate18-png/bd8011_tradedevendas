@@ -13,6 +13,7 @@ import {
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { Skeleton } from "@/components/Skeleton";
 import { useCurvaABC } from "@/lib/hooks/useCurvaABC";
+import { FabricanteMultiSelect } from "@/components/FabricanteMultiSelect";
 import type { FilterOptions } from "@/lib/types";
 
 const TOOLTIP_STYLE = {
@@ -56,8 +57,8 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
     setDataInicio,
     dataFim,
     setDataFim,
-    codFabricante,
-    setCodFabricante,
+    codFabricantes,
+    setCodFabricantes,
   } = useCurvaABC();
 
   const top30 = produtos.slice(0, 30);
@@ -84,21 +85,12 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
               onChange={(e) => setDataFim(e.target.value)}
             />
           </div>
-          <div className="filter-field">
-            <label className="filter-label">Cód. Fabricante</label>
-            <select
-              className="filter-control"
-              value={codFabricante}
-              onChange={(e) => setCodFabricante(e.target.value)}
-            >
-              <option value="">Todos</option>
-              {filterOptions.fabricantes_codigo.map((f) => (
-                <option key={f.codigo} value={f.codigo}>
-                  {f.codigo} - {f.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FabricanteMultiSelect
+            options={filterOptions.fabricantes_codigo}
+            selecionados={codFabricantes}
+            onChange={setCodFabricantes}
+            label="Cód. Fabricante"
+          />
         </div>
       </div>
 
@@ -135,7 +127,7 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
         ) : (
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart
-              key={`${dataInicio}-${dataFim}-${codFabricante}`}
+              key={`${dataInicio}-${dataFim}-${codFabricantes.join(",")}`}
               data={top30}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
