@@ -56,8 +56,8 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
     setDataInicio,
     dataFim,
     setDataFim,
-    fabricante,
-    setFabricante,
+    codFabricante,
+    setCodFabricante,
   } = useCurvaABC();
 
   const top30 = produtos.slice(0, 30);
@@ -85,16 +85,16 @@ export function ProdutosCurvaABC({ filterOptions }: ProdutosCurvaABCProps) {
             />
           </div>
           <div className="filter-field">
-            <label className="filter-label">Fabricante</label>
+            <label className="filter-label">Cód. Fabricante</label>
             <select
               className="filter-control"
-              value={fabricante}
-              onChange={(e) => setFabricante(e.target.value)}
+              value={codFabricante}
+              onChange={(e) => setCodFabricante(e.target.value)}
             >
               <option value="">Todos</option>
-              {filterOptions.fabricantes.map((f) => (
-                <option key={f} value={f}>
-                  {f}
+              {filterOptions.fabricantes_codigo.map((f) => (
+                <option key={f.codigo} value={f.codigo}>
+                  {f.codigo} - {f.nome}
                 </option>
               ))}
             </select>
