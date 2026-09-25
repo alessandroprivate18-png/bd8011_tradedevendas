@@ -12,6 +12,7 @@ import { CoberturaPanel } from "@/components/CoberturaPanel";
 import { GerencialPanel } from "@/components/GerencialPanel";
 import { RoteiroVendedorPanel } from "@/components/RoteiroVendedorPanel";
 import { ProdutosCurvaABC } from "@/components/ProdutosCurvaABC";
+import { RedesDashboard } from "@/components/RedesDashboard";
 import { TopVendedores } from "@/components/TopVendedores";
 import { TopProdutos } from "@/components/TopProdutos";
 import { TopClientes } from "@/components/TopClientes";
@@ -313,6 +314,20 @@ function AbaProdutos() {
   );
 }
 
+function AbaRedes() {
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Redes (dim_bd_Redes)</h1>
+        <p style={{ color: "var(--color-muted)" }}>
+          Ranking de redes, lojas e comparativo Year over Year
+        </p>
+      </div>
+      <RedesDashboard />
+    </>
+  );
+}
+
 function EmBreve({ titulo }: { titulo: string }) {
   return (
     <div className="panel" style={{ textAlign: "center", padding: "48px 24px" }}>
@@ -340,7 +355,7 @@ function Painel({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
       {activeTab === "produtos" && <AbaProdutos />}
       {activeTab === "gerencial" && <AbaGerencial />}
       {activeTab === "roteiro" && <AbaRoteiro />}
-      {activeTab === "redes" && <EmBreve titulo="Redes (dim_bd_Redes) — próxima etapa" />}
+      {activeTab === "redes" && <AbaRedes />}
     </DashboardLayout>
   );
 }
