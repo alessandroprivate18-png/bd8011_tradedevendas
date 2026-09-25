@@ -62,7 +62,7 @@ export type Filtros = {
   supervisor: string;
   ramo: string;
   fabricante: string;
-  codFabricante: string; // codigo do fabricante (Cod_Fabricante), separado do nome
+  codFabricantes: number[]; // multi-selecao de codigos de fabricante
   clienteBusca: string; // aceita nome OU codigo do cliente
   tipoVenda: string; // 1=Venda, 2=Troca, 3=Bonificação, 4=Consignado, 5=Outras Saídas, 6=Merchandising
   codVendedor: string; // Código ou nome do vendedor
